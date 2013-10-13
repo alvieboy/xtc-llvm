@@ -376,8 +376,10 @@ void NewcpuFrameLowering::emitPrologue(MachineFunction &MF) const {
 //      BuildMI(MBB, MBBI, DL, TII.get(Newcpu::STI))
   //      .addReg(Newcpu::R6).addReg(Newcpu::R7).addImm(-4);
       // Set it to SP
-      BuildMI(MBB, MBBI, DL, TII.get(Newcpu::MOVRR))
-        .addReg(Newcpu::R7).addReg(Newcpu::R6);
+      /*
+      BuildMI(MBB, MBBI, DL, TII.get(Newcpu::MOV))
+      .addReg(Newcpu::R6).addReg(Newcpu::R7);
+      */
   }
   /*
   // Adjust stack : addi R1, R1, -imm
@@ -481,7 +483,6 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
     }
   }
 #endif
-
   // Simply discard ADJCALLSTACKDOWN, ADJCALLSTACKUP instructions.
   MBB.erase(I);
 }

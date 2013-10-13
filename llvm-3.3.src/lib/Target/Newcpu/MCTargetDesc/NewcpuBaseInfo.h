@@ -79,17 +79,14 @@ static inline bool isDARNewcpuRegister(unsigned Reg) {
 /// Newcpu::R0, return the number that it corresponds to (e.g. 0).
 static inline unsigned getNewcpuRegisterNumbering(unsigned RegEnum) {
   switch (RegEnum) {
-    case Newcpu::R0     : return 0;
-    case Newcpu::R1     : return 1;
-    case Newcpu::R2     : return 2;
-    case Newcpu::R3     : return 3;
-    case Newcpu::R4     : return 4;
-    case Newcpu::R5     : return 5;
-    case Newcpu::R6     : return 6;
-    case Newcpu::R7     : return 7;
-    case Newcpu::A      : return 0;
-//    case Newcpu::Z      : return 1;
-    case Newcpu::PC     : return 0;
+    case Newcpu::r0     : return 0;
+    case Newcpu::r1     : return 1;
+    case Newcpu::r2     : return 2;
+    case Newcpu::r3     : return 3;
+    case Newcpu::r4     : return 4;
+    case Newcpu::r5     : return 5;
+    case Newcpu::r6     : return 6;
+    case Newcpu::r7     : return 7;
     default: llvm_unreachable("Unknown register number!");
   }
 }
@@ -98,22 +95,14 @@ static inline unsigned getNewcpuRegisterNumbering(unsigned RegEnum) {
 /// Newcpu::R0, return the number that it corresponds to (e.g. 0).
 static inline unsigned getGPRNewcpuRegisterFromNumbering(unsigned Reg) {
   switch (Reg) {
-    case 0  : return Newcpu::R0;
-    case 1  : return Newcpu::R1;
-    case 2  : return Newcpu::R2;
-    case 3  : return Newcpu::R3;
-    case 4  : return Newcpu::R4;
-    case 5  : return Newcpu::R5;
-    case 6  : return Newcpu::R6;
-    case 7  : return Newcpu::R7;
-    default: llvm_unreachable("Unknown register number!");
-  }
-}
-
-static inline unsigned getDARNewcpuRegisterFromNumbering(unsigned Reg) {
-  switch (Reg) {
-  case 0:
-      return Newcpu::A;
+    case 0  : return Newcpu::r0;
+    case 1  : return Newcpu::r1;
+    case 2  : return Newcpu::r2;
+    case 3  : return Newcpu::r3;
+    case 4  : return Newcpu::r4;
+    case 5  : return Newcpu::r5;
+    case 6  : return Newcpu::r6;
+    case 7  : return Newcpu::r7;
     default: llvm_unreachable("Unknown register number!");
   }
 }

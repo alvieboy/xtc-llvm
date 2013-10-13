@@ -43,11 +43,18 @@ using namespace llvm;
 
 NewcpuRegisterInfo::
 NewcpuRegisterInfo(const NewcpuSubtarget &ST, const TargetInstrInfo &tii)
-  : NewcpuGenRegisterInfo(Newcpu::R7), Subtarget(ST), TII(tii) {}
+  : NewcpuGenRegisterInfo(Newcpu::r7), Subtarget(ST), TII(tii) {}
 
 unsigned NewcpuRegisterInfo::getPICCallReg() {
-  return Newcpu::R1;
+  return Newcpu::r2;
 }
+
+const TargetRegisterClass *
+NewcpuRegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind)
+                                                                       const {
+  return &Newcpu::GPRegsRegClass;
+}
+
 
 //===----------------------------------------------------------------------===//
 // Callee Saved Registers methods
@@ -58,7 +65,7 @@ const uint16_t* NewcpuRegisterInfo::
 getCalleeSavedRegs(const MachineFunction *MF) const {
   // Newcpu callee-save register range is R20 - R31
   static const uint16_t CalleeSavedRegs[] = {
-      Newcpu::R4, Newcpu::R5, Newcpu::R6,
+      Newcpu::r4, Newcpu::r5, Newcpu::r6,
       0
   };
 
@@ -68,8 +75,9 @@ getCalleeSavedRegs(const MachineFunction *MF) const {
 BitVector NewcpuRegisterInfo::
 getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  Reserved.set(Newcpu::R0);
-  Reserved.set(Newcpu::R1);
+  Reserved.set(Newcpu::r0);
+  Reserved.set(Newcpu::r6);
+  Reserved.set(Newcpu::r7);
   return Reserved;
 }
 
@@ -123,7 +131,7 @@ processFunctionBeforeFrameFinalized(MachineFunction &MF, RegScavenger *) const {
 unsigned NewcpuRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
 
-  return Newcpu::R6;
+  return Newcpu::r14;
 }
 
 unsigned NewcpuRegisterInfo::getEHExceptionRegister() const {

@@ -70,19 +70,28 @@ namespace llvm {
       GPRel,
 
       // Select CC Pseudo Instruction
-      Select_CC,
+      SELECT_CC,
 
       // Wrap up multiple types of instructions
       Wrap,
-
-      // Integer Compare
-      ICmp,
 
       // Return from subroutine
       Ret,
 
       // Return from interrupt
-      IRet
+      IRet,
+      ADD,
+      SUB,
+      ADDC,
+      SBB,
+      OR,
+      XOR,
+      AND,
+      // Conditional branching
+      BRCOND,
+      CMP,
+      SETCC,
+      BR_CC
     };
   }
 
@@ -121,8 +130,15 @@ namespace llvm {
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerArith(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
+
+    SDValue EmitCmp(SDValue Op0, SDValue Op1, unsigned X86CC,SelectionDAG &DAG) const;
+
 
     virtual SDValue
       LowerFormalArguments(SDValue Chain,
@@ -169,10 +185,26 @@ namespace llvm {
 
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
 
+    bool getPreIndexedAddressParts(SDNode *N, SDValue &Base,
+                                           SDValue &Offset,
+                                           ISD::MemIndexedMode &AM,
+                                           SelectionDAG &DAG) const;
+
+    bool getPostIndexedAddressParts(SDNode *N, SDValue &Base,
+                                           SDValue &Offset,
+                                           ISD::MemIndexedMode &AM,
+                                           SelectionDAG &DAG) const;
+
+    virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+
     /// isFPImmLegal - Returns true if the target can instruction select the
     /// specified FP immediate natively. If false, the legalizer will
     /// materialize the FP immediate as a load from a constant pool.
     virtual bool isFPImmLegal(const APFloat &Imm, EVT VT) const;
+public:
+    bool SelectAddrRegReg(SDValue N, SDValue &Base, SDValue &Index, SelectionDAG &DAG) const;
+    bool SelectAddrRegImm(SDValue N, SDValue &Base, SDValue &Disp, SelectionDAG &DAG) const;
+
   };
 }
 

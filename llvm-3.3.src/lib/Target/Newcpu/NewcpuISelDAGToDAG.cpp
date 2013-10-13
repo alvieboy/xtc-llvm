@@ -49,15 +49,17 @@ class NewcpuDAGToDAGISel : public SelectionDAGISel {
 
   /// TM - Keep a reference to NewcpuTargetMachine.
   NewcpuTargetMachine &TM;
-
+  const NewcpuTargetLowering &NewcpuLowering;
   /// Subtarget - Keep a pointer to the NewcpuSubtarget around so that we can
   /// make the right decision when generating code for different targets.
   const NewcpuSubtarget &Subtarget;
 
 public:
   explicit NewcpuDAGToDAGISel(NewcpuTargetMachine &tm) :
-  SelectionDAGISel(tm),
-  TM(tm), Subtarget(tm.getSubtarget<NewcpuSubtarget>()) {}
+      SelectionDAGISel(tm),
+        TM(tm),
+        NewcpuLowering(*TM.getTargetLowering()),
+        Subtarget(tm.getSubtarget<NewcpuSubtarget>()) {}
 
   // Pass Name
   virtual const char *getPassName() const {
@@ -119,29 +121,7 @@ static bool isIntS32Immediate(SDValue Op, int32_t &Imm) {
 /// can be represented as an indexed [r+r] operation.  Returns false if it
 /// can be more efficiently represented with [r+imm].
 bool NewcpuDAGToDAGISel::SelectAddrRegReg(SDValue N, SDValue &Base, SDValue &Index) {
-
-    DEBUG(dbgs()<<"ALVIE "<<__PRETTY_FUNCTION__<<" called\n");
-
-    if (N.getOpcode() == ISD::FrameIndex) return false;
-    if (N.getOpcode() == ISD::TargetExternalSymbol ||
-        N.getOpcode() == ISD::TargetGlobalAddress)
-        return false;  // direct calls.
-
-    int32_t imm = 0;
-    if (N.getOpcode() == ISD::ADD || N.getOpcode() == ISD::OR) {
-        if (isIntS32Immediate(N.getOperand(1), imm))
-            return false;    // r+i
-
-        if (N.getOperand(0).getOpcode() == ISD::TargetJumpTable ||
-            N.getOperand(1).getOpcode() == ISD::TargetJumpTable)
-            return false; // jump tables.
-
-        Base = N.getOperand(0);
-        Index = N.getOperand(1);
-        return true;
-    }
-
-    return false;
+    return NewcpuLowering.SelectAddrRegReg(N, Base, Index, *CurDAG);
 }
 
 /// Returns true if the address N can be represented by a base register plus
@@ -149,37 +129,8 @@ bool NewcpuDAGToDAGISel::SelectAddrRegReg(SDValue N, SDValue &Base, SDValue &Ind
 /// represented as reg+reg.
 bool NewcpuDAGToDAGISel::
 SelectAddrRegImm(SDValue N, SDValue &Base, SDValue &Disp) {
-  // If this can be more profitably realized as r+r, fail.
-    DEBUG(dbgs()<<__PRETTY_FUNCTION__<<"SelectAddrRegImm called\n");
 
-    if (SelectAddrRegReg(N, Base, Disp))
-    return false;
-
-  if (N.getOpcode() == ISD::ADD || N.getOpcode() == ISD::OR) {
-    int32_t imm = 0;
-    if (isIntS32Immediate(N.getOperand(1), imm)) {
-      Disp = CurDAG->getTargetConstant(imm, MVT::i32);
-      if (FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(N.getOperand(0))) {
-        Base = CurDAG->getTargetFrameIndex(FI->getIndex(), N.getValueType());
-      } else {
-        Base = N.getOperand(0);
-      }
-      return true; // [r+i]
-    }
-  } else if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(N)) {
-    // Loading from a constant address.
-    uint32_t Imm = CN->getZExtValue();
-    Disp = CurDAG->getTargetConstant(Imm, CN->getValueType(0));
-    Base = CurDAG->getRegister(Newcpu::R0, CN->getValueType(0));
-    return true;
-  }
-
-  Disp = CurDAG->getTargetConstant(0, TM.getTargetLowering()->getPointerTy());
-  if (FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(N))
-    Base = CurDAG->getTargetFrameIndex(FI->getIndex(), N.getValueType());
-  else
-    Base = N;
-  return true;      // [r+0]
+    return NewcpuLowering.SelectAddrRegImm(N, Base, Disp, *CurDAG);
 }
 
 /// getGlobalBaseReg - Output the instructions required to put the
@@ -230,12 +181,94 @@ SDNode* NewcpuDAGToDAGISel::Select(SDNode *Node) {
     }
 #endif
 
+    case ISD::STORE:
+        {
+            break;
+#if 0
+            StoreSDNode *LD = cast<StoreSDNode>(Node);
+
+            ISD::MemIndexedMode AM = LD->getAddressingMode();
+            DEBUG(dbgs()<<"CHECK POST_INC"<<"\n");
+            MVT VT = LD->getMemoryVT().getSimpleVT();
+            SDValue Base = LD->getBasePtr();
+            SDValue Chain = LD->getChain();
+            SDValue Offset = LD->getOffset();
+            SDValue Value = LD->getValue();
+
+            SDValue Ops[] = { Value, Base, Offset, Chain };
+ 
+            if (AM == ISD::POST_INC) {
+
+                DEBUG(dbgs()<<"YES CHECK POST_INC"<<"\n");
+
+
+                return CurDAG->getMachineNode(Newcpu::STIp, Node->getDebugLoc(),
+                                              LD->getMemoryVT(),
+                                              Node->getValueType(1),
+                                              
+                                              Ops);
+            } else if (AM == ISD::PRE_INC) {
+
+                DEBUG(dbgs()<<"YES CHECK PRE_INC"<<"\n");
+
+                return CurDAG->getMachineNode(Newcpu::STIp, Node->getDebugLoc(),
+                                              VT,
+                                              Node->getValueType(1),
+                                              
+                                              Ops);
+            }
+            break;
+#endif
+        }
+    case ISD::LOAD:
+        {
+            break;
+#if 0
+            LoadSDNode *LD = cast<LoadSDNode>(Node);
+
+            ISD::MemIndexedMode AM = LD->getAddressingMode();
+            DEBUG(dbgs()<<"CHECK POST_INC"<<"\n");
+            MVT VT = LD->getMemoryVT().getSimpleVT();
+            SDValue Base = LD->getBasePtr();
+            SDValue Chain = LD->getChain();
+            SDValue Offset = LD->getOffset();
+
+            SDValue Ops[] = { Base, Offset, Chain };
+ 
+            if (AM == ISD::POST_INC) {
+                break;
+
+                DEBUG(dbgs()<<"YES CHECK POST_INC"<<"\n");
+
+
+                return CurDAG->getMachineNode(Newcpu::LDIp, Node->getDebugLoc(),
+                                              VT,
+                                              Node->getValueType(1),
+                                              Node->getValueType(2),
+                                              Ops);
+            } else if (AM == ISD::PRE_INC) {
+
+                DEBUG(dbgs()<<"YES CHECK PRE_INC"<<"\n");
+
+                return CurDAG->getMachineNode(Newcpu::LDIp, Node->getDebugLoc(),
+                                              VT,
+                                              Node->getValueType(1),
+                                              Node->getValueType(2),
+                                              Ops);
+            }
+            break;
+#endif
+        }
+
+
     /// Handle direct and indirect calls when using PIC. On PIC, when
     /// GOT is smaller than about 64k (small code) the GA target is
     /// loaded with only one instruction. Otherwise GA's target must
     /// be loaded with 3 instructions.
     case NewcpuISD::JmpLink: {
         DEBUG(dbgs()<<"ALVIE: "<<"is JmpLink");
+
+
 
 #if 0
         if (TM.getRelocationModel() == Reloc::PIC_) {
@@ -308,8 +341,9 @@ bool NewcpuDAGToDAGISel::SelectAddrMode2OffsetImm(SDNode *Op, SDValue N,
     return true;
   }
   */
-    return true;
-  return false;
+    //return true;
+    DEBUG(dbgs()<<__PRETTY_FUNCTION__<<"called \n");
+    return false;
 }
 
 /// createNewcpuISelDag - This pass converts a legalized DAG into a

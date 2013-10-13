@@ -43,22 +43,32 @@ static bool CC_Newcpu_AssignReg(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
 
 const char *NewcpuTargetLowering::getTargetNodeName(unsigned Opcode) const {
 
-    DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called"<<Opcode);
-  switch (Opcode) {
+    switch (Opcode) {
     case NewcpuISD::JmpLink    : return "NewcpuISD::JmpLink";
     case NewcpuISD::GPRel      : return "NewcpuISD::GPRel";
     case NewcpuISD::Wrap       : return "NewcpuISD::Wrap";
-    case NewcpuISD::ICmp       : return "NewcpuISD::ICmp";
     case NewcpuISD::Ret        : return "NewcpuISD::Ret";
-    case NewcpuISD::Select_CC  : return "NewcpuISD::Select_CC";
-    default                    : return NULL;
+    case NewcpuISD::SELECT_CC  : return "NewcpuISD::SELECT_CC";
+    case NewcpuISD::ADD        : return "NewcpuISD::ADD";
+    case NewcpuISD::SUB        : return "NewcpuISD::SUB";
+    case NewcpuISD::ADDC       : return "NewcpuISD::ADDC";
+    case NewcpuISD::SBB        : return "NewcpuISD::SBB";
+    case NewcpuISD::XOR        : return "NewcpuISD::XOR";
+    case NewcpuISD::AND        : return "NewcpuISD::AND";
+    case NewcpuISD::BRCOND     : return "NewcpuISD::BRCOND";
+    case NewcpuISD::SETCC      : return "NewcpuISD::SETCC";
+    case NewcpuISD::CMP        : return "NewcpuISD::CMP";
+    case NewcpuISD::BR_CC      : return "NewcpuISD::BR_CC";
+    default                    :
+      llvm_unreachable("Unknown node name");
+      return NULL;
   }
 }
 
 NewcpuTargetLowering::NewcpuTargetLowering(NewcpuTargetMachine &TM)
 : TargetLowering(TM, new NewcpuTargetObjectFile()) {
 
-    DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called");
+    DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called"<<"\n");
   Subtarget = &TM.getSubtarget<NewcpuSubtarget>();
 
   // Newcpu does not have i1 type, so use i32 for
@@ -68,7 +78,7 @@ NewcpuTargetLowering::NewcpuTargetLowering(NewcpuTargetMachine &TM)
 
   // Set up the register classes
   addRegisterClass(MVT::i32, &Newcpu::GPRegsRegClass);
-  addRegisterClass(MVT::i32, &Newcpu::ARegsRegClass);
+  //addRegisterClass(MVT::i32, &Newcpu::SPRegsRegClass);
 #if 0
   if (Subtarget->hasFPU()) {
     addRegisterClass(MVT::f32, &Newcpu::GPRegsRegClass);
@@ -76,6 +86,33 @@ NewcpuTargetLowering::NewcpuTargetLowering(NewcpuTargetMachine &TM)
   }
 
 #endif
+     /*
+  setIndexedLoadAction(ISD::PRE_INC, MVT::i8, Legal);
+  setIndexedLoadAction(ISD::PRE_INC, MVT::i16, Legal);
+  setIndexedLoadAction(ISD::PRE_INC, MVT::i32, Legal);
+  setIndexedLoadAction(ISD::POST_INC, MVT::i8, Legal);
+  setIndexedLoadAction(ISD::POST_INC, MVT::i16, Legal);
+  setIndexedLoadAction(ISD::POST_INC, MVT::i32, Legal);
+  setIndexedLoadAction(ISD::PRE_DEC, MVT::i8, Legal);
+  setIndexedLoadAction(ISD::PRE_DEC, MVT::i16, Legal);
+  setIndexedLoadAction(ISD::PRE_DEC, MVT::i32, Legal);
+  setIndexedLoadAction(ISD::POST_DEC, MVT::i8, Legal);
+  setIndexedLoadAction(ISD::POST_DEC, MVT::i16, Legal);
+  setIndexedLoadAction(ISD::POST_DEC, MVT::i32, Legal);
+
+  setIndexedStoreAction(ISD::PRE_INC, MVT::i8, Legal);
+  setIndexedStoreAction(ISD::PRE_INC, MVT::i16, Legal);
+  setIndexedStoreAction(ISD::PRE_INC, MVT::i32, Legal);
+  setIndexedStoreAction(ISD::POST_INC, MVT::i8, Legal);
+  setIndexedStoreAction(ISD::POST_INC, MVT::i16, Legal);
+  setIndexedStoreAction(ISD::POST_INC, MVT::i32, Legal);
+  setIndexedStoreAction(ISD::PRE_DEC, MVT::i8, Legal);
+  setIndexedStoreAction(ISD::PRE_DEC, MVT::i16, Legal);
+  setIndexedStoreAction(ISD::PRE_DEC, MVT::i32, Legal);
+  setIndexedStoreAction(ISD::POST_DEC, MVT::i8, Legal);
+  setIndexedStoreAction(ISD::POST_DEC, MVT::i16, Legal);
+  setIndexedStoreAction(ISD::POST_DEC, MVT::i32, Legal);
+       */
   // Floating point operations which are not supported
   setOperationAction(ISD::FREM,       MVT::f32, Expand);
   setOperationAction(ISD::FMA,        MVT::f32, Expand);
@@ -135,7 +172,6 @@ NewcpuTargetLowering::NewcpuTargetLowering(NewcpuTargetMachine &TM)
   setOperationAction(ISD::BITCAST, MVT::f32, Expand);
   setOperationAction(ISD::BITCAST, MVT::i32, Expand);
 
-  // Expand SELECT_CC
   setOperationAction(ISD::SELECT_CC, MVT::Other, Expand);
 
   // Newcpu doesn't have MUL_LOHI
@@ -144,13 +180,31 @@ NewcpuTargetLowering::NewcpuTargetLowering(NewcpuTargetMachine &TM)
   setOperationAction(ISD::SMUL_LOHI, MVT::i64, Expand);
   setOperationAction(ISD::UMUL_LOHI, MVT::i64, Expand);
 
+  setOperationAction(ISD::BRCOND           , MVT::Other, Expand); //Custom);
+  setOperationAction(ISD::SETCC            , MVT::i1,  Promote);
+  setOperationAction(ISD::SETCC            , MVT::i8,  Promote);
+  setOperationAction(ISD::SETCC            , MVT::i16, Promote);
+  setOperationAction(ISD::SETCC            , MVT::i32, Custom);
+
   // Used by legalize types to correctly generate the setcc result.
   // Without this, every float setcc comes with a AND/OR with the result,
   // we don't want this, since the fpcmp result goes to a flag register,
   // which is used implicitly by brcond and select operations.
+
+  setOperationAction(ISD::SELECT          , MVT::i1   , Promote);
+  setOperationAction(ISD::SELECT_CC       , MVT::i1   , Promote);
+  setOperationAction(ISD::BRCOND          , MVT::i1   , Promote);
+  setOperationAction(ISD::SETCC           , MVT::i1   , Promote);
+
   AddPromotedToType(ISD::SETCC, MVT::i1, MVT::i32);
+  AddPromotedToType(ISD::BRCOND, MVT::i1, MVT::i32);
   AddPromotedToType(ISD::SELECT, MVT::i1, MVT::i32);
   AddPromotedToType(ISD::SELECT_CC, MVT::i1, MVT::i32);
+
+  AddPromotedToType(ISD::SETCC, MVT::i8, MVT::i32);
+  AddPromotedToType(ISD::BRCOND, MVT::i8, MVT::i32);
+  AddPromotedToType(ISD::SELECT, MVT::i8, MVT::i32);
+  AddPromotedToType(ISD::SELECT_CC, MVT::i8, MVT::i32);
 
   // Newcpu Custom Operations
   setOperationAction(ISD::GlobalAddress,      MVT::i32,   Custom);
@@ -165,11 +219,14 @@ NewcpuTargetLowering::NewcpuTargetLowering(NewcpuTargetMachine &TM)
   setOperationAction(ISD::VACOPY,             MVT::Other, Expand);
 
 
+  //setOperationAction(ISD::ADD,             MVT::i32, Custom);
+
+
   // Operations not directly supported by Newcpu.
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32,   Expand);
   setOperationAction(ISD::BR_JT,              MVT::Other, Expand);
   setOperationAction(ISD::BR_CC,              MVT::f32,   Expand);
-  setOperationAction(ISD::BR_CC,              MVT::i32,   Expand);
+  setOperationAction(ISD::BR_CC,              MVT::i32,   Custom);
   setOperationAction(ISD::SIGN_EXTEND_INREG,  MVT::i1,    Expand);
   setOperationAction(ISD::ROTL,               MVT::i32,   Expand);
   setOperationAction(ISD::ROTR,               MVT::i32,   Expand);
@@ -182,7 +239,6 @@ NewcpuTargetLowering::NewcpuTargetLowering(NewcpuTargetMachine &TM)
   setOperationAction(ISD::CTTZ_ZERO_UNDEF,    MVT::i32,   Expand);
   setOperationAction(ISD::CTPOP,              MVT::i32,   Expand);
   setOperationAction(ISD::BSWAP,              MVT::i32,   Expand);
-
   // We don't have line number support yet.
   setOperationAction(ISD::EH_LABEL,          MVT::Other, Expand);
 
@@ -196,28 +252,195 @@ NewcpuTargetLowering::NewcpuTargetLowering(NewcpuTargetMachine &TM)
 
   setMinFunctionAlignment(2);
 
-  setStackPointerRegisterToSaveRestore(Newcpu::R1);
+  setStackPointerRegisterToSaveRestore(Newcpu::r1);
   computeRegisterProperties();
 }
 
+
+static unsigned TranslateToNewcpuCC(ISD::CondCode SetCCOpcode,
+                                    SDValue &LHS, SDValue &RHS,
+                                    SelectionDAG &DAG) {
+    switch (SetCCOpcode) {
+    default: llvm_unreachable("Invalid integer condition!");
+    case ISD::SETEQ:  return NewcpuCC::EQ;
+    case ISD::SETGT:  return NewcpuCC::GT;
+    case ISD::SETGE:  return NewcpuCC::GE;
+    case ISD::SETLT:  return NewcpuCC::LT;
+    case ISD::SETLE:  return NewcpuCC::LE;
+    case ISD::SETNE:  return NewcpuCC::NE;
+                                       /*
+    case ISD::SETULT: return Newcpu::COND_B;
+    case ISD::SETUGT: return Newcpu::COND_A;
+    case ISD::SETULE: return Newcpu::COND_BE;
+    case ISD::SETUGE: return Newcpu::COND_AE;
+    */
+    }
+}
+
+
 EVT NewcpuTargetLowering::getSetCCResultType(EVT VT) const {
-  return MVT::i32;
+    if (!VT.isVector()) return MVT::i32;
+    return VT.changeVectorElementTypeToInteger();
+}
+
+SDValue NewcpuTargetLowering::LowerArith(SDValue Op,
+                                         SelectionDAG &DAG) const {
+
+    EVT VT = Op.getNode()->getValueType(0);
+    SDVTList VTs = DAG.getVTList(VT, MVT::i32);
+
+    unsigned Opc;
+    switch (Op.getOpcode()) {
+    default: llvm_unreachable("Invalid code");
+    case ISD::ADD: Opc = NewcpuISD::ADD; break;
+    case ISD::SUB: Opc = NewcpuISD::SUB; break;
+    }
+
+    return DAG.getNode(Opc, Op->getDebugLoc(), VTs, Op.getOperand(0),
+                       Op.getOperand(1));
+
+}
+
+SDValue NewcpuTargetLowering::EmitCmp(SDValue Op0, SDValue Op1, unsigned NewcpuCC,
+                                      SelectionDAG &DAG) const {
+/*    if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op1))
+        if (C->getAPIntValue() == 0)
+            return EmitTest(Op0, X86CC, DAG);
+            */
+
+    if (Op0.getValueType() != MVT::i32 ||
+        Op1.getValueType() != MVT::i32) {
+        llvm_unreachable("Cannot compare different types");
+    }
+    DebugLoc dl = Op0.getDebugLoc();
+/*    if ((Op0.getValueType() == MVT::i8 || Op0.getValueType() == MVT::i16 ||
+         Op0.getValueType() == MVT::i32 || Op0.getValueType() == MVT::i64)) {
+        // Use SUB instead of CMP to enable CSE between SUB and CMP.
+        SDVTList VTs = DAG.getVTList(Op0.getValueType(), MVT::i32);
+        SDValue Sub = DAG.getNode(NewcpuISD::CMP, dl, VTs,
+                                  Op0, Op1);
+        return SDValue(Sub.getNode(), 1);
+        }
+        */
+    return DAG.getNode(NewcpuISD::CMP, dl, MVT::Glue, Op0, Op1);
+}
+
+
+SDValue NewcpuTargetLowering::LowerSETCC(SDValue Op,
+                                         SelectionDAG &DAG) const {
+
+    MVT VT = Op.getValueType().getSimpleVT();
+
+    DEBUG(dbgs()<<"Lowering SETCC\n");
+
+    if (VT.isVector()) {
+        llvm_unreachable("No lower for vector setcc");
+    }
+
+    DEBUG(dbgs()<<"Op: \n");
+    Op.dump();
+    Op.getOperand(0).dump();
+    Op.getOperand(1).dump();
+    Op.getOperand(2).dump();
+
+    assert(VT == MVT::i32 && "SetCC type must be 32-bit integer");
+
+    SDValue Op0 = Op.getOperand(0);
+    SDValue Op1 = Op.getOperand(1);
+    DebugLoc dl = Op.getDebugLoc();
+    ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(2))->get();
+
+    DEBUG(dbgs()<<"Condcode "<<CC<<"\n");
+
+    unsigned NewcpuCC = TranslateToNewcpuCC(CC, Op0, Op1, DAG);
+
+    SDValue Flag = EmitCmp(Op0, Op1, NewcpuCC, DAG);
+
+
+    SDValue Zero = DAG.getConstant(0, VT);
+    SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Glue);
+    SDValue One  = DAG.getConstant(1, VT);
+
+    SmallVector<SDValue, 4> Ops;
+
+    Ops.push_back(One);
+    Ops.push_back(Zero);
+    Ops.push_back( DAG.getConstant(NewcpuCC, MVT::i32) );
+    Ops.push_back(Flag);
+
+    return DAG.getNode(NewcpuISD::SELECT_CC, dl, VTs, &Ops[0], Ops.size());
+
+    llvm_unreachable("Not yet");
+}
+
+SDValue NewcpuTargetLowering::LowerBRCOND(SDValue Op,
+                                         SelectionDAG &DAG) const {
+
+    SDValue Chain = Op.getOperand(0);
+    SDValue Cond  = Op.getOperand(1);
+    SDValue Dest  = Op.getOperand(2);
+    DebugLoc dl = Op.getDebugLoc();
+    SDValue CC;
+    DEBUG(dbgs()<<"Lowering BRCOND\n");
+    if (Cond.getOpcode() == ISD::SETCC) {
+        SDValue NewCond = LowerSETCC(Cond,DAG);
+        if (NewCond.getNode())
+            Cond = NewCond;
+    }
+
+    CC = DAG.getConstant(NewcpuCC::NE, MVT::i32);
+
+    return DAG.getNode(NewcpuISD::BRCOND, dl, Op.getValueType(),
+                       Chain, Dest, CC, Cond);
+
+    llvm_unreachable("No lower BRCOND");
+}
+
+SDValue NewcpuTargetLowering::LowerBR_CC(SDValue Op,
+                                         SelectionDAG &DAG) const {
+
+    SDValue Chain = Op.getOperand(0);
+    ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
+    SDValue Op0 = Op.getOperand(2);
+    SDValue Op1 = Op.getOperand(3);
+    SDValue Dest = Op.getOperand(4);
+
+    DebugLoc dl = Op.getDebugLoc();
+
+    unsigned NewcpuCC = TranslateToNewcpuCC(CC, Op0, Op1, DAG);
+
+    SDValue Flag = DAG.getNode(NewcpuISD::CMP, dl, MVT::Glue, Op0, Op1);
+
+    return DAG.getNode(NewcpuISD::BR_CC, dl, MVT::Other,
+                       Chain, Dest, DAG.getConstant(CC,MVT::i32), Flag);
+
+    llvm_unreachable("No lower BRCOND");
 }
 
 SDValue NewcpuTargetLowering::LowerOperation(SDValue Op,
                                              SelectionDAG &DAG) const {
-  switch (Op.getOpcode())
-  {
+
+    DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called"<<"\n");
+    switch (Op.getOpcode())
+    {
     case ISD::ConstantPool:       return LowerConstantPool(Op, DAG);
     case ISD::GlobalAddress:      return LowerGlobalAddress(Op, DAG);
     case ISD::GlobalTLSAddress:   return LowerGlobalTLSAddress(Op, DAG);
     case ISD::JumpTable:          return LowerJumpTable(Op, DAG);
     case ISD::SELECT_CC:          return LowerSELECT_CC(Op, DAG);
+    //case ISD::SELECT:             return LowerSELECT(Op, DAG);
     case ISD::VASTART:            return LowerVASTART(Op, DAG);
-  default:
-      llvm_unreachable("unimplemented operand");
-  }
-  return SDValue();
+    /*
+     case ISD::ADD:
+     case ISD::SUB:                return LowerArith(Op, DAG);
+     */
+    case ISD::BRCOND:             return LowerBRCOND(Op, DAG);
+    case ISD::BR_CC:             return LowerBR_CC(Op, DAG);
+    case ISD::SETCC:              return LowerSETCC(Op, DAG);
+    default:
+        llvm_unreachable("unimplemented operand");
+    }
+    return SDValue();
 }
 
 //===----------------------------------------------------------------------===//
@@ -369,7 +592,7 @@ NewcpuTargetLowering::EmitCustomSelect(MachineInstr *MI,
                                        MachineBasicBlock *MBB) const {
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   DebugLoc dl = MI->getDebugLoc();
-DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called");
+  DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called");
 
   // To "insert" a SELECT_CC instruction, we actually have to insert the
   // diamond control-flow pattern.  The incoming instruction knows the
@@ -605,8 +828,8 @@ SDValue NewcpuTargetLowering::LowerSELECT_CC(SDValue Op,
 
   SDValue CompareFlag;
   if (LHS.getValueType() == MVT::i32) {
-    Opc = NewcpuISD::Select_CC;
-    CompareFlag = DAG.getNode(NewcpuISD::ICmp, dl, MVT::i32, LHS, RHS)
+    Opc = NewcpuISD::SELECT_CC;
+    CompareFlag = DAG.getNode(NewcpuISD::CMP, dl, MVT::Glue, LHS, RHS)
                     .getValue(1);
   } else {
     llvm_unreachable("Cannot lower select_cc with unknown type");
@@ -685,7 +908,7 @@ static bool CC_Newcpu_AssignReg(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
                                 ISD::ArgFlagsTy &ArgFlags,
                                 CCState &State) {
     static const uint16_t ArgRegs[] = {
-        Newcpu::R1, Newcpu::R2, Newcpu::R3, 0
+        Newcpu::r1, Newcpu::r2, Newcpu::r3, 0
     };
 
     const unsigned NumArgRegs = array_lengthof(ArgRegs);
@@ -1066,7 +1289,7 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
   unsigned Reg = (CallConv == CallingConv::MBLAZE_INTR) ? Newcpu::R14
       : Newcpu::R15;
 #endif
-  unsigned Reg = Newcpu::A;
+  unsigned Reg = Newcpu::r1;
   unsigned Ret = NewcpuISD::Ret;
 
   RetOps.push_back(DAG.getRegister(Reg, MVT::i32));
@@ -1184,3 +1407,174 @@ isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const {
 bool NewcpuTargetLowering::isFPImmLegal(const APFloat &Imm, EVT VT) const {
   return VT != MVT::f32;
 }
+
+bool NewcpuTargetLowering::getPreIndexedAddressParts(SDNode *N, SDValue &Base,
+                                                     SDValue &Offset,
+                                                     ISD::MemIndexedMode &AM,
+                                                     SelectionDAG &DAG) const
+{
+    bool isLoad = true;
+    SDValue Ptr;
+    EVT VT;
+    return false;
+
+    unsigned Alignment;
+    if (LoadSDNode *LD = dyn_cast<LoadSDNode>(N)) {
+        return false;
+        Ptr = LD->getBasePtr();
+        VT = LD->getMemoryVT();
+        Alignment = LD->getAlignment();
+    } else if (StoreSDNode *ST = dyn_cast<StoreSDNode>(N)) {
+        Ptr = ST->getBasePtr();
+        VT  = ST->getMemoryVT();
+        Alignment = ST->getAlignment();
+        isLoad = false;
+    } else
+        return false;
+        
+    if (!SelectAddrRegImm(Ptr, Base, Offset, DAG)) {
+        DEBUG(dbgs()<<"Cannot select RegImm!");
+        return false;
+    }
+    DEBUG(dbgs()<<"PRE_INC successful!");
+    N->dump();
+    DEBUG(dbgs()<<"Base: \n");
+    Base.dump();
+    DEBUG(dbgs()<<"Offset: \n");
+    Offset.dump();
+    DEBUG(dbgs()<<"Ptr: \n");
+    Ptr.dump();
+    DEBUG(dbgs()<<"\n");
+
+
+    AM = ISD::PRE_INC;
+    return true;
+
+
+    //llvm_unreachable("getPreIndexedAddressParts not implemented");
+}
+
+bool NewcpuTargetLowering::getPostIndexedAddressParts(SDNode *N, SDValue &Base,
+                                                     SDValue &Offset,
+                                                     ISD::MemIndexedMode &AM,
+                                                     SelectionDAG &DAG) const
+{
+    llvm_unreachable("getPostIndexedAddressParts not implemented");
+}
+
+/// isIntS32Immediate - This method tests to see if the node is either a 32-bit
+/// or 64-bit immediate, and if the value can be accurately represented as a
+/// sign extension from a 32-bit value.  If so, this returns true and the
+/// immediate.
+static bool isIntS32Immediate(SDNode *N, int32_t &Imm) {
+  unsigned Opc = N->getOpcode();
+  if (Opc != ISD::Constant)
+    return false;
+
+  Imm = (int32_t)cast<ConstantSDNode>(N)->getZExtValue();
+  if (N->getValueType(0) == MVT::i32)
+    return Imm == (int32_t)cast<ConstantSDNode>(N)->getZExtValue();
+  else
+    return Imm == (int64_t)cast<ConstantSDNode>(N)->getZExtValue();
+}
+
+static bool isIntS32Immediate(SDValue Op, int32_t &Imm) {
+  return isIntS32Immediate(Op.getNode(), Imm);
+}
+
+
+/// SelectAddressRegReg - Given the specified addressed, check to see if it
+/// can be represented as an indexed [r+r] operation.  Returns false if it
+/// can be more efficiently represented with [r+imm].
+bool NewcpuTargetLowering::SelectAddrRegReg(SDValue N, SDValue &Base, SDValue &Index, SelectionDAG &DAG) const {
+
+    DEBUG(dbgs()<<"ALVIE "<<__PRETTY_FUNCTION__<<" called\n");
+
+    if (N.getOpcode() == ISD::FrameIndex) return false;
+    if (N.getOpcode() == ISD::TargetExternalSymbol ||
+        N.getOpcode() == ISD::TargetGlobalAddress)
+        return false;  // direct calls.
+
+    int32_t imm = 0;
+    if (N.getOpcode() == ISD::ADD || N.getOpcode() == ISD::OR) {
+        if (isIntS32Immediate(N.getOperand(1), imm))
+            return false;    // r+i
+
+        if (N.getOperand(0).getOpcode() == ISD::TargetJumpTable ||
+            N.getOperand(1).getOpcode() == ISD::TargetJumpTable)
+            return false; // jump tables.
+
+        Base = N.getOperand(0);
+        Index = N.getOperand(1);
+        return true;
+    }
+
+    return false;
+}
+
+/// Returns true if the address N can be represented by a base register plus
+/// a signed 32-bit displacement [r+imm], and if it is not better
+/// represented as reg+reg.
+bool NewcpuTargetLowering::SelectAddrRegImm(SDValue N, SDValue &Base, SDValue &Disp,SelectionDAG &DAG) const {
+  // If this can be more profitably realized as r+r, fail.
+    DEBUG(dbgs()<<__PRETTY_FUNCTION__<<"SelectAddrRegImm called\n");
+
+    if (SelectAddrRegReg(N, Base, Disp,DAG))
+    return false;
+
+  if (N.getOpcode() == ISD::ADD || N.getOpcode() == ISD::OR) {
+    int32_t imm = 0;
+    if (isIntS32Immediate(N.getOperand(1), imm)) {
+      Disp = DAG.getTargetConstant(imm, MVT::i32);
+      if (FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(N.getOperand(0))) {
+        Base = DAG.getTargetFrameIndex(FI->getIndex(), N.getValueType());
+      } else {
+        Base = N.getOperand(0);
+      }
+      return true; // [r+i]
+    }
+  } else if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(N)) {
+    // Loading from a constant address.
+    uint32_t Imm = CN->getZExtValue();
+    Disp = DAG.getTargetConstant(Imm, CN->getValueType(0));
+    Base = DAG.getRegister(Newcpu::r0, CN->getValueType(0));
+    return true;
+  }
+
+  Disp = DAG.getTargetConstant(0, getPointerTy());
+  if (FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(N))
+    Base = DAG.getTargetFrameIndex(FI->getIndex(), N.getValueType());
+  else
+    Base = N;
+  return true;      // [r+0]
+}
+
+SDValue NewcpuTargetLowering::PerformDAGCombine(SDNode *N,
+                                                DAGCombinerInfo &DCI) const {
+    SelectionDAG &DAG = DCI.DAG;
+    switch (N->getOpcode()) {
+    case NewcpuISD::SETCC:       //return PerformSETCCCombine(N, DAG, DCI, Subtarget);
+        {
+            DebugLoc DL = N->getDebugLoc();
+            SDValue CC = N->getOperand(1);
+            SDValue FLAGS = N->getOperand(0);
+            DEBUG(dbgs()<<"\nCC: ");
+            CC.dump();
+            DEBUG(dbgs()<<"\nFLAGS: ");
+            FLAGS.dump();
+
+            DEBUG(dbgs()<<"Opcode "<<getTargetNodeName(CC.getOpcode()));
+
+            if (CC.getOpcode() != NewcpuISD::CMP)
+                return SDValue();
+
+            // Remove setcc..
+
+            llvm_unreachable("Combine SETCC");
+        }
+        break;
+    }
+    return SDValue();
+}
+
+

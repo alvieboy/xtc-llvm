@@ -42,7 +42,7 @@ static MCInstrInfo *createNewcpuMCInstrInfo() {
 
 static MCRegisterInfo *createNewcpuMCRegisterInfo(StringRef TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
-  InitNewcpuMCRegisterInfo(X, Newcpu::R7);
+  InitNewcpuMCRegisterInfo(X, Newcpu::r7);
   return X;
 }
 

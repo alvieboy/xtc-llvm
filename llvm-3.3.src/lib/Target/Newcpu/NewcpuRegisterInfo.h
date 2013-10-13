@@ -49,7 +49,12 @@ struct NewcpuRegisterInfo : public NewcpuGenRegisterInfo {
   void processFunctionBeforeFrameFinalized(MachineFunction &MF,
                                            RegScavenger *RS = NULL) const;
 
+
+  const TargetRegisterClass *getPointerRegClass(const MachineFunction &MF, unsigned Kind) const;
+
   /// Debug information queries.
+
+
   unsigned getFrameRegister(const MachineFunction &MF) const;
 
   /// Exception handling queries.

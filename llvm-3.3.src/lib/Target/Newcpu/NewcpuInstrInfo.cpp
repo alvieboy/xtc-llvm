@@ -43,7 +43,7 @@ static bool isZeroImm(const MachineOperand &op) {
 unsigned NewcpuInstrInfo::
 isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex) const {
 
-    if (MI->getOpcode() == Newcpu::LDI) {
+    if (MI->getOpcode() == Newcpu::LDW) {
     if ((MI->getOperand(1).isFI()) && // is a stack slot
         (MI->getOperand(2).isImm()) &&  // the imm is zero
         (isZeroImm(MI->getOperand(2)))) {
@@ -86,10 +86,12 @@ copyPhysReg(MachineBasicBlock &MBB,
             MachineBasicBlock::iterator I, DebugLoc DL,
             unsigned DestReg, unsigned SrcReg,
             bool KillSrc) const {
-
     DEBUG(dbgs()<<"Copy from reg "<<SrcReg<<" to reg "<<DestReg<<"\n");
-    llvm::BuildMI(MBB, I, DL, get(Newcpu::MOVRA), DestReg)
-        .addReg(SrcReg, getKillRegState(KillSrc));
+    llvm_unreachable("Cannot");
+    /*
+    llvm::BuildMI(MBB, I, DL, get(Newcpu::MOV), DestReg)
+    .addReg(SrcReg, getKillRegState(KillSrc));
+    */
 }
 
 void NewcpuInstrInfo::
@@ -100,10 +102,7 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
     DebugLoc DL;
     if (RC == &Newcpu::GPRegsRegClass) {
-        BuildMI(MBB, I, DL, get(Newcpu::STMRI)).addReg(SrcReg,getKillRegState(isKill))
-            .addFrameIndex(FI).addImm(0); //.addFrameIndex(FI);
-    } else if (RC==&Newcpu::ARegsRegClass) {
-        BuildMI(MBB, I, DL, get(Newcpu::STMAI)).addReg(SrcReg,getKillRegState(isKill))
+        BuildMI(MBB, I, DL, get(Newcpu::STI)).addReg(SrcReg,getKillRegState(isKill))
             .addFrameIndex(FI).addImm(0); //.addFrameIndex(FI);
 
     } else {
@@ -120,10 +119,7 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     DebugLoc DL;
 
     if (RC == &Newcpu::GPRegsRegClass) {
-        BuildMI(MBB, I, DL, get(Newcpu::LDI), DestReg)
-            .addFrameIndex(FI).addImm(0); //.addFrameIndex(FI);
-    } else if (RC==&Newcpu::ARegsRegClass) {
-        BuildMI(MBB, I, DL, get(Newcpu::LDAI), DestReg)
+        BuildMI(MBB, I, DL, get(Newcpu::LDW), DestReg)
             .addFrameIndex(FI).addImm(0); //.addFrameIndex(FI);
     } else {
         llvm_unreachable("Cannot load this register from stack slot");
@@ -209,13 +205,13 @@ InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
              MachineBasicBlock *FBB,
              const SmallVectorImpl<MachineOperand> &Cond,
              DebugLoc DL) const {
-#if 0
+
     // Shouldn't be a fall through.
   assert(TBB && "InsertBranch must not be told to insert a fallthrough");
   assert((Cond.size() == 2 || Cond.size() == 0) &&
          "Newcpu branch conditions have two components!");
 
-  unsigned Opc = Newcpu::BRID;
+  unsigned Opc = Newcpu::BRI;
   if (!Cond.empty())
     Opc = (unsigned)Cond[0].getImm();
 
@@ -228,8 +224,8 @@ InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   }
 
   BuildMI(&MBB, DL, get(Opc)).addReg(Cond[1].getReg()).addMBB(TBB);
-  BuildMI(&MBB, DL, get(Newcpu::BRID)).addMBB(FBB);
-#endif
+  BuildMI(&MBB, DL, get(Newcpu::BRI)).addMBB(FBB);
+
   return 2;
 }
 
@@ -318,8 +314,8 @@ unsigned NewcpuInstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
   GlobalBaseReg = RegInfo.createVirtualRegister(&Newcpu::GPRegsRegClass);
 
   BuildMI(FirstMBB, MBBI, DebugLoc(), TII->get(TargetOpcode::COPY),
-          GlobalBaseReg).addReg(Newcpu::R6);
-  RegInfo.addLiveIn(Newcpu::R6);
+          GlobalBaseReg).addReg(Newcpu::r6);
+  RegInfo.addLiveIn(Newcpu::r6);
 
   NewcpuFI->setGlobalBaseReg(GlobalBaseReg);
   return GlobalBaseReg;

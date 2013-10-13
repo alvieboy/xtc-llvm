@@ -14,8 +14,8 @@
 //===----------------------------------------------------------------------===//
 
 def RetCC_Newcpu : CallingConv<[
-  // i32 are returned in registers A
-  CCIfType<[i32], CCAssignToReg<[A]>>
+  // i32 are returned in registers R1
+  CCIfType<[i32], CCAssignToReg<[r1]>>
 ]>;
 
 def CC_Newcpu : CallingConv<[

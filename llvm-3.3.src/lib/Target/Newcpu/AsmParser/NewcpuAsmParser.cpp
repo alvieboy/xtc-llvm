@@ -179,6 +179,24 @@ public:
   bool isFsl() const { return Kind == Fsl; }
   bool isReg() const { return Kind == Register; }
 
+  bool isMemImm7Offset() const {
+    // If we have an immediate that's not a constant, treat it as a label
+    // reference needing a fixup. If it is a constant, it's something else
+    // and we reject it.
+    if (isImm() && !isa<MCConstantExpr>(getImm()))
+      return true;
+
+    if (!isMem() || Mem.Off != 0 )//|| Mem.Alignment != 0)
+        return false;
+    // Immediate offset in range [-127, 128].
+    if (!Mem.Off) return true;
+
+    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+
+    int64_t Val = CE->getValue();
+    return (Val > -128 && Val < 128) || (Val == INT32_MIN);
+  }
+
   bool isAM2OffsetImm() const {
       return false;
   }
