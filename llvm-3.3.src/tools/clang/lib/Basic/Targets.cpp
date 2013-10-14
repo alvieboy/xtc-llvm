@@ -1659,6 +1659,98 @@ void MBlazeTargetInfo::getGCCRegAliases(const GCCRegAlias *&Aliases,
 }
 } // end anonymous namespace.
 
+
+//    An upper-case ��E” in the string indicates a big-endian target data model. A lower-case “e” indicates little-endian.
+//    “p:” is followed by pointer information: size, ABI alignment, and preferred alignment. If only two figures follow “p:”, then the first value is pointer size, and the second value is both ABI and preferred alignment.
+//    Then a letter for numeric type alignment: “i”, “f”, “v”, or “a” (corresponding to integer, floating point, vector, or aggregate). “i”, “v”, or “a” are followed by ABI alignment and preferred alignment. “f” is followed by three values: the first indicates the size of a long double, then ABI alignment, and then ABI preferred alignment.
+
+namespace {
+// Newcpu abstract base class
+class NewcpuTargetInfo : public TargetInfo {
+  static const char * const GCCRegNames[];
+  static const TargetInfo::GCCRegAlias GCCRegAliases[];
+
+public:
+  NewcpuTargetInfo(const std::string& triple) : TargetInfo(triple) {
+      DescriptionString = "E-p:32:32:32-i32:32:32-i16:16:16-i8:8:8";
+  }
+
+  virtual void getTargetBuiltins(const Builtin::Info *&Records,
+                                 unsigned &NumRecords) const {
+    // FIXME: Implement.
+    Records = 0;
+    NumRecords = 0;
+  }
+
+  virtual void getTargetDefines(const LangOptions &Opts,
+                                MacroBuilder &Builder) const;
+
+  virtual bool hasFeature(StringRef Feature) const {
+    return Feature == "newcpu";
+  }
+  
+  virtual BuiltinVaListKind getBuiltinVaListKind() const {
+    return TargetInfo::CharPtrBuiltinVaList;
+  }
+  virtual const char *getTargetPrefix() const {
+    return "newcpu";
+  }
+  virtual void getGCCRegNames(const char * const *&Names,
+                              unsigned &NumNames) const;
+  virtual void getGCCRegAliases(const GCCRegAlias *&Aliases,
+                                unsigned &NumAliases) const;
+
+  virtual bool validateAsmConstraint(const char *&Name,
+                                     TargetInfo::ConstraintInfo &Info) const {
+      return false;
+  }
+  virtual const char *getClobbers() const {
+    return "";
+  }
+};
+
+/// NewcpuTargetInfo::getTargetDefines - Return a set of the Newcpu-specific
+/// #defines that are not tied to a specific subtarget.
+void NewcpuTargetInfo::getTargetDefines(const LangOptions &Opts,
+                                     MacroBuilder &Builder) const {
+  // Target identification.
+  Builder.defineMacro("__newcpu__");
+  Builder.defineMacro("_ARCH_NEWCPU");
+  Builder.defineMacro("__NEWCPU__");
+
+  // Target properties.
+  Builder.defineMacro("_BIG_ENDIAN");
+  Builder.defineMacro("__BIG_ENDIAN__");
+
+  // Subtarget options.
+  //Builder.defineMacro("__REGISTER_PREFIX__", "");
+}
+
+
+const char * const NewcpuTargetInfo::GCCRegNames[] = {
+  "r0",   "r1",   "r2",   "r3",   "r4",   "r5",   "r6",   "r7",
+  "a",   "z",   "pc"
+};
+
+void NewcpuTargetInfo::getGCCRegNames(const char * const *&Names,
+                                   unsigned &NumNames) const {
+  Names = GCCRegNames;
+  NumNames = llvm::array_lengthof(GCCRegNames);
+}
+
+const TargetInfo::GCCRegAlias NewcpuTargetInfo::GCCRegAliases[] = {
+  { {"sp"},  "r7" },
+  { {"fp"},  "r6" },
+};
+
+void NewcpuTargetInfo::getGCCRegAliases(const GCCRegAlias *&Aliases,
+                                     unsigned &NumAliases) const {
+  Aliases = GCCRegAliases;
+  NumAliases = llvm::array_lengthof(GCCRegAliases);
+}
+} // end anonymous namespace.
+
+
 namespace {
 // Namespace for x86 abstract base class
 const Builtin::Info BuiltinInfo[] = {
@@ -5364,6 +5456,9 @@ static TargetInfo *AllocateTarget(const std::string &T) {
 
   case llvm::Triple::mblaze:
     return new MBlazeTargetInfo(T);
+
+  case llvm::Triple::newcpu:
+    return new NewcpuTargetInfo(T);
 
   case llvm::Triple::r600:
     return new R600TargetInfo(T);
