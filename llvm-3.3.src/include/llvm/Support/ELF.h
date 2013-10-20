@@ -289,7 +289,7 @@ enum {
   EM_78KOR         = 199, // Renesas 78KOR family
   EM_56800EX       = 200, // Freescale 56800EX Digital Signal Controller (DSC)
   EM_MBLAZE        = 47787, // Xilinx MicroBlaze
-  EM_NEWCPU        = 47788 // Alvie Newcpu
+  EM_XTC           = 47788 // Alvie XTC
 };
 
 // Object file classes.
@@ -444,11 +444,11 @@ enum {
   R_MICROBLAZE_COPY           = 21
 };
 
-// Newcpu relocations.
+// XTC relocations.
 enum {
-  R_NEWCPU_NONE           = 0,
-  R_NEWCPU_32             = 1,
-  R_NEWCPU_IMM            = 2
+  R_XTC_NONE           = 0,
+  R_XTC_32             = 1,
+  R_XTC_IMM            = 2
 };
 
 // ELF Relocation types for PPC32

@@ -186,8 +186,18 @@ static bool isDelayFiller(MachineBasicBlock &MBB,
 }
 
 static bool hasUnknownSideEffects(MachineBasicBlock::iterator &I) {
-  if (!I->hasUnmodeledSideEffects())
-    return false;
+
+    unsigned op = I->getOpcode();
+
+    if ( op == XTC::IM )
+        return false;
+
+    return true;
+
+    if (!I->hasUnmodeledSideEffects())
+      return false;
+
+
 #if 0
   unsigned op = I->getOpcode();
   if (op == XTC::ADDK || op == XTC::ADDIK ||
@@ -198,6 +208,8 @@ static bool hasUnknownSideEffects(MachineBasicBlock::iterator &I) {
       op == XTC::RSUBKC || op == XTC::RSUBIKC)
     return false;
 #endif
+
+
   return true;
 }
 
@@ -210,13 +222,13 @@ findDelayInstr(MachineBasicBlock &MBB,MachineBasicBlock::iterator slot) {
 
     --I;
     if (I->hasDelaySlot() || I->isBranch() || isDelayFiller(MBB,I) ||
-        I->isCall() || I->isReturn() || I->isBarrier() ||
+        I->isCall() || I->isReturn() || I->isBarrier() || 
         hasUnknownSideEffects(I))
       break;
-
+  /*
     if (hasImmInstruction(I) || delayHasHazard(I,slot))
       continue;
-
+    */
     return I;
   }
 
@@ -238,12 +250,10 @@ bool Filler::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
 
       ++FilledSlots;
       Changed = true;
-#if 0
       if (D == MBB.end())
         BuildMI(MBB, ++J, I->getDebugLoc(), TII->get(XTC::NOP));
       else
           MBB.splice(++J, &MBB, D);
-#endif
     }
   return Changed;
 }

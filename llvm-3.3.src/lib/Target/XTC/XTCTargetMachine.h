@@ -17,7 +17,7 @@
 #include "XTCFrameLowering.h"
 #include "XTCISelLowering.h"
 #include "XTCInstrInfo.h"
-#include "XTCIntrinsicInfo.h"
+// #include "XTCIntrinsicInfo.h"
 #include "XTCSelectionDAGInfo.h"
 #include "XTCSubtarget.h"
 #include "llvm/IR/DataLayout.h"
@@ -35,7 +35,7 @@ namespace llvm {
     XTCFrameLowering    FrameLowering;
     XTCTargetLowering   TLInfo;
     XTCSelectionDAGInfo TSInfo;
-    XTCIntrinsicInfo    IntrinsicInfo;
+    //XTCIntrinsicInfo    IntrinsicInfo;
     InstrItineraryData     InstrItins;
 
   public:
@@ -69,9 +69,9 @@ namespace llvm {
     virtual const XTCSelectionDAGInfo* getSelectionDAGInfo() const
     { return &TSInfo; }
 
-    const TargetIntrinsicInfo *getIntrinsicInfo() const
+    /*const TargetIntrinsicInfo *getIntrinsicInfo() const
     { return &IntrinsicInfo; }
-
+    */
     // Pass Pipeline Configuration
     virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
   };

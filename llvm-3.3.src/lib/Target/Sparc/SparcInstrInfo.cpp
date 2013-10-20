@@ -150,7 +150,6 @@ bool SparcInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
     //Handle Unconditional branches
     if (I->getOpcode() == SP::BA) {
       UnCondBrIter = I;
-
       if (!AllowModify) {
         TBB = I->getOperand(0).getMBB();
         continue;

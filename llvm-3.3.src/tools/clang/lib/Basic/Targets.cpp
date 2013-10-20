@@ -1665,13 +1665,13 @@ void MBlazeTargetInfo::getGCCRegAliases(const GCCRegAlias *&Aliases,
 //    Then a letter for numeric type alignment: “i”, “f”, “v”, or “a” (corresponding to integer, floating point, vector, or aggregate). “i”, “v”, or “a” are followed by ABI alignment and preferred alignment. “f” is followed by three values: the first indicates the size of a long double, then ABI alignment, and then ABI preferred alignment.
 
 namespace {
-// Newcpu abstract base class
-class NewcpuTargetInfo : public TargetInfo {
+// XTC abstract base class
+class XTCTargetInfo : public TargetInfo {
   static const char * const GCCRegNames[];
   static const TargetInfo::GCCRegAlias GCCRegAliases[];
 
 public:
-  NewcpuTargetInfo(const std::string& triple) : TargetInfo(triple) {
+  XTCTargetInfo(const std::string& triple) : TargetInfo(triple) {
       DescriptionString = "E-p:32:32:32-i32:32:32-i16:16:16-i8:8:8";
   }
 
@@ -1686,14 +1686,14 @@ public:
                                 MacroBuilder &Builder) const;
 
   virtual bool hasFeature(StringRef Feature) const {
-    return Feature == "newcpu";
+    return Feature == "xtc";
   }
   
   virtual BuiltinVaListKind getBuiltinVaListKind() const {
     return TargetInfo::CharPtrBuiltinVaList;
   }
   virtual const char *getTargetPrefix() const {
-    return "newcpu";
+    return "xtc";
   }
   virtual void getGCCRegNames(const char * const *&Names,
                               unsigned &NumNames) const;
@@ -1709,14 +1709,14 @@ public:
   }
 };
 
-/// NewcpuTargetInfo::getTargetDefines - Return a set of the Newcpu-specific
+/// XTCTargetInfo::getTargetDefines - Return a set of the XTC-specific
 /// #defines that are not tied to a specific subtarget.
-void NewcpuTargetInfo::getTargetDefines(const LangOptions &Opts,
+void XTCTargetInfo::getTargetDefines(const LangOptions &Opts,
                                      MacroBuilder &Builder) const {
   // Target identification.
-  Builder.defineMacro("__newcpu__");
-  Builder.defineMacro("_ARCH_NEWCPU");
-  Builder.defineMacro("__NEWCPU__");
+  Builder.defineMacro("__xtc__");
+  Builder.defineMacro("_ARCH_XTC");
+  Builder.defineMacro("__XTC__");
 
   // Target properties.
   Builder.defineMacro("_BIG_ENDIAN");
@@ -1727,23 +1727,24 @@ void NewcpuTargetInfo::getTargetDefines(const LangOptions &Opts,
 }
 
 
-const char * const NewcpuTargetInfo::GCCRegNames[] = {
-  "r0",   "r1",   "r2",   "r3",   "r4",   "r5",   "r6",   "r7",
-  "a",   "z",   "pc"
+const char * const XTCTargetInfo::GCCRegNames[] = {
+    "r0",   "r1",   "r2",   "r3",   "r4",   "r5",   "r6",   "r7",
+    "r8",   "r9",   "r10",   "r11",   "r12",   "r13",   "r14",   "r15",
+    "br",   "pc",   "y"
 };
 
-void NewcpuTargetInfo::getGCCRegNames(const char * const *&Names,
+void XTCTargetInfo::getGCCRegNames(const char * const *&Names,
                                    unsigned &NumNames) const {
   Names = GCCRegNames;
   NumNames = llvm::array_lengthof(GCCRegNames);
 }
 
-const TargetInfo::GCCRegAlias NewcpuTargetInfo::GCCRegAliases[] = {
-  { {"sp"},  "r7" },
-  { {"fp"},  "r6" },
+const TargetInfo::GCCRegAlias XTCTargetInfo::GCCRegAliases[] = {
+  { {"sp"},  "r15" },
+  { {"fp"},  "r14" },
 };
 
-void NewcpuTargetInfo::getGCCRegAliases(const GCCRegAlias *&Aliases,
+void XTCTargetInfo::getGCCRegAliases(const GCCRegAlias *&Aliases,
                                      unsigned &NumAliases) const {
   Aliases = GCCRegAliases;
   NumAliases = llvm::array_lengthof(GCCRegAliases);
@@ -5457,8 +5458,8 @@ static TargetInfo *AllocateTarget(const std::string &T) {
   case llvm::Triple::mblaze:
     return new MBlazeTargetInfo(T);
 
-  case llvm::Triple::newcpu:
-    return new NewcpuTargetInfo(T);
+  case llvm::Triple::xtc:
+    return new XTCTargetInfo(T);
 
   case llvm::Triple::r600:
     return new R600TargetInfo(T);

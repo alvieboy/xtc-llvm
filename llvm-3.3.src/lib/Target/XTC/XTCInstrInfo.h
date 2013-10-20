@@ -146,12 +146,8 @@ namespace XTC {
   inline static bool isUncondBranchOpcode(int Opc) {
     switch (Opc) {
     default: return false;
-    /*
+
     case XTC::BRI:
-    case XTC::BRAI:
-    case XTC::BRID:
-    case XTC::BRAID:
-    */
       return true;
     }
   }
@@ -159,14 +155,7 @@ namespace XTC {
   inline static bool isCondBranchOpcode(int Opc) {
     switch (Opc) {
     default: return false;
-    /*
-    case XTC::BEQI: case XTC::BEQID:
-    case XTC::BNEI: case XTC::BNEID:
-    case XTC::BGTI: case XTC::BGTID:
-    case XTC::BGEI: case XTC::BGEID:
-    case XTC::BLTI: case XTC::BLTID:
-    case XTC::BLEI: case XTC::BLEID:
-    */
+    case XTC::BCOND:
       return true;
     }
   }

@@ -193,7 +193,7 @@ let isCommutable=1 in {
 }
 
 
-let isReturn=1, isTerminator=1 in {
+let isReturn=1, isTerminator=1, hasDelaySlot = 1 in {
     def RET:    XTCGENERIC<(outs), (ins), "RET", [(XTCRet r1)], IIC_ALU1>;
 }
 
@@ -288,14 +288,14 @@ let isBranch = 1, isTerminator = 1, hasCtrlDep = 1,
   def BRAID  :  BranchI<"braid  ", XTC_COND_C>;
   }                            */
 
-let Uses = [FLAGS], isBranch = 1, isTerminator = 1, isBarrier = 1, hasCtrlDep = 1  in {
+let Uses = [FLAGS], isBranch = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1, hasCtrlDep = 1  in {
 
 def BCOND: XTCGENERIC<(outs), (ins brtarget:$dst, simm32:$cc),
     "b$cc $dst",
     [(XTCbrcc bb:$dst, imm:$cc)], IIC_ALU1>;
 }
 
-let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
+let isBranch = 1, isTerminator = 1, isBarrier = 1, hasDelaySlot = 1 in {
 
     def BRI: XTCGENERIC<(outs), (ins brtarget:$dst),
         "bri $dst",

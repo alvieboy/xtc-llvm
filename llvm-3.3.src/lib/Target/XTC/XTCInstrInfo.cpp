@@ -130,74 +130,94 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 // Branch Analysis
 //===----------------------------------------------------------------------===//
 bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
-                                    MachineBasicBlock *&TBB,
-                                    MachineBasicBlock *&FBB,
-                                    SmallVectorImpl<MachineOperand> &Cond,
-                                    bool AllowModify) const {
-  // If the block has no terminators, it just falls into the block after it.
-  MachineBasicBlock::iterator I = MBB.end();
-  if (I == MBB.begin())
-    return false;
-  --I;
-  while (I->isDebugValue()) {
-    if (I == MBB.begin())
-      return false;
-    --I;
-  }
-  if (!isUnpredicatedTerminator(I))
-    return false;
+                                 MachineBasicBlock *&TBB,
+                                 MachineBasicBlock *&FBB,
+                                 SmallVectorImpl<MachineOperand> &Cond,
+                                 bool AllowModify) const {
+    // Start from the bottom of the block and work up, examining the
+    // terminator instructions.
+    MachineBasicBlock::iterator I = MBB.end();
+    while (I != MBB.begin()) {
+        --I;
+        if (I->isDebugValue())
+            continue;
 
-  // Get the last instruction in the block.
-  MachineInstr *LastInst = I;
+        // Working from the bottom, when we see a non-terminator
+        // instruction, we're done.
+        if (!isUnpredicatedTerminator(I))
+            break;
 
-  // If there is only one terminator instruction, process it.
-  unsigned LastOpc = LastInst->getOpcode();
-  if (I == MBB.begin() || !isUnpredicatedTerminator(--I)) {
-    if (XTC::isUncondBranchOpcode(LastOpc)) {
-      TBB = LastInst->getOperand(0).getMBB();
-      return false;
+        // A terminator that isn't a branch can't easily be handled
+        // by this analysis.
+        if (!I->isBranch())
+            return true;
+
+        // Handle unconditional branches.
+        if (llvm::XTC::isUncondBranchOpcode(I->getOpcode())) {
+            if (!AllowModify) {
+                TBB = I->getOperand(0).getMBB();
+                continue;
+            }
+
+            // If the block has any instructions after a JMP, delete them.
+            while (llvm::next(I) != MBB.end()) {
+                DEBUG(dbgs()<<"Erasing instruction");
+                llvm::next(I)->eraseFromParent();
+            }
+            Cond.clear();
+            FBB = 0;
+
+            // Delete the JMP if it's equivalent to a fall-through.
+            if (MBB.isLayoutSuccessor(I->getOperand(0).getMBB())) {
+                TBB = 0;
+                DEBUG(dbgs()<<"Fall-through jump, erasing instruction");
+                I->eraseFromParent();
+                I = MBB.end();
+                continue;
+            }
+
+            // TBB is used to indicate the unconditinal destination.
+            TBB = I->getOperand(0).getMBB();
+            continue;
+        }
+
+        // Handle conditional branches.
+        assert(llvm::XTC::isCondBranchOpcode(I->getOpcode()));
+#if 0
+        unsigned BranchCode =
+            static_cast<MSP430CC::CondCodes>(I->getOperand(1).getImm());
+        if (BranchCode == MSP430CC::COND_INVALID)
+            return true;  // Can't handle weird stuff.
+
+        // Working from the bottom, handle the first conditional branch.
+        if (Cond.empty()) {
+            FBB = TBB;
+            TBB = I->getOperand(0).getMBB();
+            Cond.push_back(MachineOperand::CreateImm(BranchCode));
+            continue;
+        }
+
+        // Handle subsequent conditional branches. Only handle the case where all
+        // conditional branches branch to the same destination.
+        assert(Cond.size() == 1);
+        assert(TBB);
+
+        // Only handle the case where all conditional branches branch to
+        // the same destination.
+        if (TBB != I->getOperand(0).getMBB())
+            return true;
+
+        MSP430CC::CondCodes OldBranchCode = (MSP430CC::CondCodes)Cond[0].getImm();
+        // If the conditions are the same, we can leave them alone.
+        if (OldBranchCode == BranchCode)
+            continue;
+        return true;
+#endif
+        return true; /* Don't handle this yet */
     }
-    if (XTC::isCondBranchOpcode(LastOpc)) {
-      // Block ends with fall-through condbranch.
-      TBB = LastInst->getOperand(1).getMBB();
-      Cond.push_back(MachineOperand::CreateImm(LastInst->getOpcode()));
-      Cond.push_back(LastInst->getOperand(0));
-      return false;
-    }
-    // Otherwise, don't know what this is.
-    return true;
-  }
 
-  // Get the instruction before it if it's a terminator.
-  MachineInstr *SecondLastInst = I;
-
-  // If there are three terminators, we don't know what sort of block this is.
-  if (SecondLastInst && I != MBB.begin() && isUnpredicatedTerminator(--I))
-    return true;
-
-  // If the block ends with something like BEQID then BRID, handle it.
-  if (XTC::isCondBranchOpcode(SecondLastInst->getOpcode()) &&
-      XTC::isUncondBranchOpcode(LastInst->getOpcode())) {
-    TBB = SecondLastInst->getOperand(1).getMBB();
-    Cond.push_back(MachineOperand::CreateImm(SecondLastInst->getOpcode()));
-    Cond.push_back(SecondLastInst->getOperand(0));
-    FBB = LastInst->getOperand(0).getMBB();
     return false;
-  }
 
-  // If the block ends with two unconditional branches, handle it.
-  // The second one is not executed, so remove it.
-  if (XTC::isUncondBranchOpcode(SecondLastInst->getOpcode()) &&
-      XTC::isUncondBranchOpcode(LastInst->getOpcode())) {
-    TBB = SecondLastInst->getOperand(0).getMBB();
-    I = LastInst;
-    if (AllowModify)
-      I->eraseFromParent();
-    return false;
-  }
-
-  // Otherwise, can't handle this.
-  return true;
 }
 
 unsigned XTCInstrInfo::

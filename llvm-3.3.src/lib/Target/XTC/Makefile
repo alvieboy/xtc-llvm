@@ -15,7 +15,7 @@ BUILT_SOURCES = XTCGenRegisterInfo.inc XTCGenInstrInfo.inc \
 		XTCGenAsmWriter.inc \
                 XTCGenDAGISel.inc XTCGenAsmMatcher.inc \
                 XTCGenCodeEmitter.inc XTCGenCallingConv.inc \
-                XTCGenSubtargetInfo.inc XTCGenIntrinsics.inc
+                XTCGenSubtargetInfo.inc
 
 DIRS = InstPrinter AsmParser Disassembler TargetInfo MCTargetDesc
 

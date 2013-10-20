@@ -23,6 +23,8 @@
 
 using namespace llvm;
 
+#if 0
+
 namespace XTCIntrinsic {
 
   enum ID {
@@ -110,3 +112,4 @@ Function *XTCIntrinsicInfo::getDeclaration(Module *M, unsigned IntrID,
                                                getType(M->getContext(), IntrID),
                                                AList));
 }
+#endif
