@@ -19,10 +19,11 @@
 #include "llvm/MC/MCInst.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
+#include "XTCISelLowering.h"
 using namespace llvm;
 
 
-// Include the auto-generated portion of the assembly writer.
+// Include the auto-generated portion of the assembly writer.                 
 #include "XTCGenAsmWriter.inc"
 
 void XTCInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
@@ -135,4 +136,10 @@ void XTCInstPrinter::printAddrMode2Operand(const MCInst *MI, unsigned Op,
     }
 
     printAM2PreOrOffsetIndexOp(MI, Op, O);
+}
+
+void XTCInstPrinter::printCCOperand(const MCInst *MI, int opNum,
+                                  raw_ostream &O) {
+    int CC = (int)MI->getOperand(opNum).getImm();
+    O << XTCCCToString((XTCCC::CC)CC);
 }

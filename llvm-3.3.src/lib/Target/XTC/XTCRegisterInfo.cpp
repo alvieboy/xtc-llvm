@@ -76,9 +76,12 @@ BitVector XTCRegisterInfo::
 getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
   Reserved.set(XTC::r0);
-  Reserved.set(XTC::r6);
-  Reserved.set(XTC::r7);
+  Reserved.set(XTC::r1);
+
+  Reserved.set(XTC::r14);
+  Reserved.set(XTC::r15);
   return Reserved;
+
 }
 
 // FrameIndex represent objects inside a abstract stack.
@@ -90,7 +93,8 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
   MachineFrameInfo *MFI = MF.getFrameInfo();
-  unsigned OFIOperandNum = FIOperandNum == 2 ? 1 : 2;
+  unsigned OFIOperandNum = FIOperandNum + 1;
+  //== 2 ? 1 : 2;
 
   DEBUG(dbgs() << "\nFunction : " << MF.getName() << "\n";
         dbgs() << "<--------->\n" << MI);
@@ -111,6 +115,9 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
   // as explained on LowerFormalArguments, detect negative offsets
   // and adjust SPOffsets considering the final stack size.
   int Offset = (spOffset < 0) ? (stackSize - spOffset) : spOffset;
+
+  MI.getOperand(OFIOperandNum).print(dbgs());
+
   Offset += MI.getOperand(OFIOperandNum).getImm();
 
   DEBUG(dbgs() << "Offset     : " << Offset << "\n" << "<--------->\n");

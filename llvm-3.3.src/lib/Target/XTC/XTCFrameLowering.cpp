@@ -373,19 +373,20 @@ void XTCFrameLowering::emitPrologue(MachineFunction &MF) const {
 
   if (hasFP(MF)) {
       // Save frame pointer
-//      BuildMI(MBB, MBBI, DL, TII.get(XTC::STI))
-  //      .addReg(XTC::R6).addReg(XTC::R7).addImm(-4);
-      // Set it to SP
       /*
-      BuildMI(MBB, MBBI, DL, TII.get(XTC::MOV))
-      .addReg(XTC::R6).addReg(XTC::R7);
+      BuildMI(MBB, MBBI, DL, TII.get(XTC::STWPREI))
+      .addReg(XTC::r15).addReg(XTC::r14).addImm(-4);
       */
-  }
-  /*
-  // Adjust stack : addi R1, R1, -imm
-  BuildMI(MBB, MBBI, DL, TII.get(XTC::ADDIK), XTC::R1)
-      .addReg(XTC::R1).addImm(-StackSize);
 
+      // Set it to SP
+
+      BuildMI(MBB, MBBI, DL, TII.get(XTC::COPY))
+      .addReg(XTC::r15).addReg(XTC::r14);
+  }
+
+  // Adjust stack : addi R1, R1, -imm
+  BuildMI(MBB, MBBI, DL, TII.get(XTC::ADDI), XTC::r14).addReg(XTC::r14).addImm(-StackSize);
+/*
   // swi  R15, R1, stack_loc
   if (MFI->adjustsStack() || requiresRA) {
     BuildMI(MBB, MBBI, DL, TII.get(XTC::SWI))
@@ -436,55 +437,52 @@ void XTCFrameLowering::emitEpilogue(MachineFunction &MF,
     BuildMI(MBB, MBBI, dl, TII.get(XTC::LWI), XTC::R15)
       .addReg(XTC::R1).addImm(RAOffset);
   }
+#endif
 
   // Get the number of bytes from FrameInfo
   int StackSize = (int) MFI->getStackSize();
-
   // addi R1, R1, imm
   if (StackSize) {
-    BuildMI(MBB, MBBI, dl, TII.get(XTC::ADDIK), XTC::R1)
-      .addReg(XTC::R1).addImm(StackSize);
+    BuildMI(MBB, MBBI, dl, TII.get(XTC::ADDI), XTC::r14)
+      .addReg(XTC::r14).addImm(StackSize);
   }
-#endif
 }
 
 // Eliminate ADJCALLSTACKDOWN/ADJCALLSTACKUP pseudo instructions
 void XTCFrameLowering::
 eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
-  const XTCInstrInfo &TII =
-    *static_cast<const XTCInstrInfo*>(MF.getTarget().getInstrInfo());
-#if 0
-  if (!hasReservedCallFrame(MF)) {
-    // If we have a frame pointer, turn the adjcallstackup instruction into a
-    // 'addi r1, r1, -<amt>' and the adjcallstackdown instruction into
-    // 'addi r1, r1, <amt>'
-    MachineInstr *Old = I;
-    int Amount = Old->getOperand(0).getImm() + 4;
-    if (Amount != 0) {
-      // We need to keep the stack aligned properly.  To do this, we round the
-      // amount of space needed for the outgoing arguments up to the next
-      // alignment boundary.
-      unsigned Align = getStackAlignment();
-      Amount = (Amount+Align-1)/Align*Align;
+    const XTCInstrInfo &TII =
+        *static_cast<const XTCInstrInfo*>(MF.getTarget().getInstrInfo());
 
-      MachineInstr *New;
-      if (Old->getOpcode() == XTC::ADJCALLSTACKDOWN) {
-        New = BuildMI(MF,Old->getDebugLoc(), TII.get(XTC::ADDIK),XTC::R1)
-                .addReg(XTC::R1).addImm(-Amount);
-      } else {
-        assert(Old->getOpcode() == XTC::ADJCALLSTACKUP);
-        New = BuildMI(MF,Old->getDebugLoc(), TII.get(XTC::ADDIK),XTC::R1)
-                .addReg(XTC::R1).addImm(Amount);
-      }
 
-      // Replace the pseudo instruction with a new instruction...
-      MBB.insert(I, New);
+    if (!hasReservedCallFrame(MF)) {
+        MachineInstr *Old = I;
+
+        int Amount = Old->getOperand(0).getImm() + 4;
+        if (Amount != 0) {
+            // We need to keep the stack aligned properly.  To do this, we round the
+            // amount of space needed for the outgoing arguments up to the next
+            // alignment boundary.
+            unsigned Align = getStackAlignment();
+            Amount = (Amount+Align-1)/Align*Align;
+
+            MachineInstr *New;
+            if (Old->getOpcode() == XTC::ADJCALLSTACKDOWN) {
+                New = BuildMI(MF,Old->getDebugLoc(), TII.get(XTC::ADDI),XTC::r15)
+                    .addReg(XTC::r15).addImm(-Amount);
+            } else {
+                assert(Old->getOpcode() == XTC::ADJCALLSTACKUP);
+                New = BuildMI(MF,Old->getDebugLoc(), TII.get(XTC::ADDI),XTC::r15)
+                    .addReg(XTC::r15).addImm(Amount);
+            }
+
+            // Replace the pseudo instruction with a new instruction...
+            MBB.insert(I, New);
+        }
     }
-  }
-#endif
-  // Simply discard ADJCALLSTACKDOWN, ADJCALLSTACKUP instructions.
-  MBB.erase(I);
+    // Simply discard ADJCALLSTACKDOWN, ADJCALLSTACKUP instructions.
+    MBB.erase(I);
 }
 
 

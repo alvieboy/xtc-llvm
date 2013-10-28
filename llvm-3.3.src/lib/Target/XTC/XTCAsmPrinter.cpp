@@ -75,7 +75,7 @@ namespace {
     void printFSLImm(const MachineInstr *MI, int opNum, raw_ostream &O);
     void printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
                          const char *Modifier = 0);
-
+    void printCCOperand(const MachineInstr *MI, int opNum, raw_ostream &O);
     void EmitInstruction(const MachineInstr *MI);
   };
 } // end of anonymous namespace
@@ -319,6 +319,14 @@ isBlockOnlyReachableByFallthrough(const MachineBasicBlock *MBB) const {
     ; // Noop
   return I == Pred->end() || !I->isBarrier();
 }
+
+
+void XTCAsmPrinter::printCCOperand(const MachineInstr *MI, int opNum,
+                                  raw_ostream &O) {
+    int CC = (int)MI->getOperand(opNum).getImm();
+    O << XTCCCToString((XTCCC::CC)CC);
+}
+
 
 // Force static initialization.
 extern "C" void LLVMInitializeXTCAsmPrinter() {

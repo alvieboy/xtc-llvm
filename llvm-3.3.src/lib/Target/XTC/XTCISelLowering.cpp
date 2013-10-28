@@ -41,6 +41,24 @@ static bool CC_XTC_AssignReg(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
                                 ISD::ArgFlagsTy &ArgFlags,
                                 CCState &State);
 
+const char *llvm::XTCCC::XTCCCToString(CC cc) {
+    switch (cc) {
+    default:
+        DEBUG(dbgs()<<"Unknown "<<(int)cc);
+        llvm_unreachable("Unknown condition code");
+    case EQ: return "eq";
+    case NE: return "ne";
+    case GT: return "gt";
+    case LT: return "lt";
+    case GE: return "ge";
+    case LE: return "le";
+    case ULE: return "ule";
+    case UGE: return "uge";
+    case ULT: return "ult";
+    case UGT: return "ugt";
+    }
+}
+
 const char *XTCTargetLowering::getTargetNodeName(unsigned Opcode) const {
 
     switch (Opcode) {
@@ -59,6 +77,7 @@ const char *XTCTargetLowering::getTargetNodeName(unsigned Opcode) const {
     case XTCISD::SETCC      : return "XTCISD::SETCC";
     case XTCISD::CMP        : return "XTCISD::CMP";
     case XTCISD::BR_CC      : return "XTCISD::BR_CC";
+    case XTCISD::CALL       : return "XTCISD::CALL";
     default                    :
       llvm_unreachable("Unknown node name");
       return NULL;
@@ -172,19 +191,26 @@ XTCTargetLowering::XTCTargetLowering(XTCTargetMachine &TM)
   setOperationAction(ISD::BITCAST, MVT::f32, Expand);
   setOperationAction(ISD::BITCAST, MVT::i32, Expand);
 
-  setOperationAction(ISD::SELECT_CC, MVT::Other, Expand);
-
   // XTC doesn't have MUL_LOHI
   setOperationAction(ISD::SMUL_LOHI, MVT::i32, Expand);
   setOperationAction(ISD::UMUL_LOHI, MVT::i32, Expand);
   setOperationAction(ISD::SMUL_LOHI, MVT::i64, Expand);
   setOperationAction(ISD::UMUL_LOHI, MVT::i64, Expand);
 
-  setOperationAction(ISD::BRCOND           , MVT::Other, Expand); //Custom);
+  setOperationAction(ISD::BRCOND           , MVT::Other, Expand);
+  setOperationAction(ISD::BRCOND           , MVT::i32, Expand);
+  setOperationAction(ISD::SELECT           , MVT::Other, Expand);
+  setOperationAction(ISD::SELECT           , MVT::i32, Expand);
+
+  setOperationAction(ISD::SELECT_CC, MVT::Other, Custom);
+  setOperationAction(ISD::SELECT_CC, MVT::i32, Custom);
+
+
   setOperationAction(ISD::SETCC            , MVT::i1,  Promote);
   setOperationAction(ISD::SETCC            , MVT::i8,  Promote);
   setOperationAction(ISD::SETCC            , MVT::i16, Promote);
-  setOperationAction(ISD::SETCC            , MVT::i32, Custom);
+
+  setOperationAction(ISD::SETCC            , MVT::i32, Expand);
 
   // Used by legalize types to correctly generate the setcc result.
   // Without this, every float setcc comes with a AND/OR with the result,
@@ -268,12 +294,12 @@ static unsigned TranslateToXTCCC(ISD::CondCode SetCCOpcode,
     case ISD::SETLT:  return XTCCC::LT;
     case ISD::SETLE:  return XTCCC::LE;
     case ISD::SETNE:  return XTCCC::NE;
-                                       /*
-    case ISD::SETULT: return XTC::COND_B;
-    case ISD::SETUGT: return XTC::COND_A;
-    case ISD::SETULE: return XTC::COND_BE;
-    case ISD::SETUGE: return XTC::COND_AE;
-    */
+
+    case ISD::SETULT: return XTCCC::ULT;
+    case ISD::SETUGT: return XTCCC::UGT;
+    case ISD::SETULE: return XTCCC::ULE;
+    case ISD::SETUGE: return XTCCC::UGE;
+
     }
 }
 
@@ -388,6 +414,8 @@ SDValue XTCTargetLowering::LowerBRCOND(SDValue Op,
             Cond = NewCond;
     }
 
+    //unsigned xc =TranslateToXTCCC(DAG.getConstant(Cond, MVT::i32)));
+
     CC = DAG.getConstant(XTCCC::NE, MVT::i32);
 
     return DAG.getNode(XTCISD::BRCOND, dl, Op.getValueType(),
@@ -399,6 +427,7 @@ SDValue XTCTargetLowering::LowerBRCOND(SDValue Op,
 SDValue XTCTargetLowering::LowerBR_CC(SDValue Op,
                                          SelectionDAG &DAG) const {
 
+    DEBUG( dbgs() << __PRETTY_FUNCTION__ << "\n");
     SDValue Chain = Op.getOperand(0);
     ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
     SDValue Op0 = Op.getOperand(2);
@@ -412,7 +441,7 @@ SDValue XTCTargetLowering::LowerBR_CC(SDValue Op,
     SDValue Flag = DAG.getNode(XTCISD::CMP, dl, MVT::Glue, Op0, Op1);
 
     return DAG.getNode(XTCISD::BR_CC, dl, MVT::Other,
-                       Chain, Dest, DAG.getConstant(CC,MVT::i32), Flag);
+                       Chain, Dest, DAG.getConstant(XTCCC,MVT::i32), Flag);
 
     llvm_unreachable("No lower BRCOND");
 }
@@ -454,6 +483,8 @@ XTCTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
 DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called");
 switch (MI->getOpcode()) {
   default: llvm_unreachable("Unexpected instr type to insert");
+  case XTC::SELECT_CC:
+    return EmitCustomSelect(MI, MBB);
 #if 0
   case XTC::ShiftRL:
   case XTC::ShiftRA:
@@ -461,8 +492,6 @@ switch (MI->getOpcode()) {
     return EmitCustomShift(MI, MBB);
 
   case XTC::Select_FCC:
-  case XTC::Select_CC:
-    return EmitCustomSelect(MI, MBB);
 
   case XTC::CAS32:
   case XTC::SWP32:
@@ -592,7 +621,7 @@ XTCTargetLowering::EmitCustomSelect(MachineInstr *MI,
                                        MachineBasicBlock *MBB) const {
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   DebugLoc dl = MI->getDebugLoc();
-  DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called");
+  DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called\n");
 
   // To "insert" a SELECT_CC instruction, we actually have to insert the
   // diamond control-flow pattern.  The incoming instruction knows the
@@ -612,18 +641,29 @@ XTCTargetLowering::EmitCustomSelect(MachineInstr *MI,
   MachineBasicBlock *flsBB = F->CreateMachineBasicBlock(LLVM_BB);
   MachineBasicBlock *dneBB = F->CreateMachineBasicBlock(LLVM_BB);
 
+  {
+      int i;
+      for (i=0;i<MI->getNumOperands();i++) {
+          DEBUG(dbgs()<<"Operand "<<i<<" "<<MI->getOperand(i)<<"\n");
+      }
+  }
+
+
   unsigned Opc;
-  switch (MI->getOperand(4).getImm()) {
+  DEBUG( dbgs() << "Branch condition: "<<MI->getOperand(1).getImm() <<"\n");
+  /*
+  switch (MI->getOperand(1).getImm()) {
   default: llvm_unreachable("Unknown branch condition");
-#if 0
+
   case XTCCC::EQ: Opc = XTC::BEQID; break;
   case XTCCC::NE: Opc = XTC::BNEID; break;
   case XTCCC::GT: Opc = XTC::BGTID; break;
   case XTCCC::LT: Opc = XTC::BLTID; break;
   case XTCCC::GE: Opc = XTC::BGEID; break;
   case XTCCC::LE: Opc = XTC::BLEID; break;
-#endif
-  }
+
+  } */
+  Opc = XTC::BCOND;
 
   F->insert(It, flsBB);
   F->insert(It, dneBB);
@@ -639,8 +679,7 @@ XTCTargetLowering::EmitCustomSelect(MachineInstr *MI,
   flsBB->addSuccessor(dneBB);
 
   BuildMI(MBB, dl, TII->get(Opc))
-    .addReg(MI->getOperand(3).getReg())
-    .addMBB(dneBB);
+    .addMBB(dneBB).addImm(MI->getOperand(1).getImm());
 
   //  sinkMBB:
   //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
@@ -651,8 +690,8 @@ XTCTargetLowering::EmitCustomSelect(MachineInstr *MI,
 
   BuildMI(*dneBB, dneBB->begin(), dl,
           TII->get(XTC::PHI), MI->getOperand(0).getReg())
-    .addReg(MI->getOperand(2).getReg()).addMBB(flsBB)
-    .addReg(MI->getOperand(1).getReg()).addMBB(MBB);
+    .addReg(MI->getOperand(3).getReg()).addMBB(flsBB)
+    .addReg(MI->getOperand(2).getReg()).addMBB(MBB);
 
   MI->eraseFromParent();   // The pseudo instruction is gone now.
   return dneBB;
@@ -817,25 +856,33 @@ DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called");
 //
 
 SDValue XTCTargetLowering::LowerSELECT_CC(SDValue Op,
-                                             SelectionDAG &DAG) const {
+                                          SelectionDAG &DAG) const {
   SDValue LHS = Op.getOperand(0);
   SDValue RHS = Op.getOperand(1);
   SDValue TrueVal = Op.getOperand(2);
   SDValue FalseVal = Op.getOperand(3);
+
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(4))->get();
+
+  unsigned XTCCC = TranslateToXTCCC(CC, LHS, RHS, DAG);
+
   DebugLoc dl = Op.getDebugLoc();
+
   unsigned Opc;
-  DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called");
+
+  DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" called\n");
 
   SDValue CompareFlag;
   if (LHS.getValueType() == MVT::i32) {
-    Opc = XTCISD::SELECT_CC;
-    CompareFlag = DAG.getNode(XTCISD::CMP, dl, MVT::Glue, LHS, RHS)
-                    .getValue(1);
+
+      Opc = XTCISD::SELECT_CC;
+      CompareFlag = DAG.getNode(XTCISD::CMP, dl, MVT::Glue, LHS, RHS);
   } else {
-    llvm_unreachable("Cannot lower select_cc with unknown type");
+      llvm_unreachable("Cannot lower select_cc with unknown type");
   }
 
   return DAG.getNode(Opc, dl, TrueVal.getValueType(), TrueVal, FalseVal,
+                     DAG.getConstant(XTCCC, MVT::i32),
                      CompareFlag);
 }
 
@@ -913,8 +960,10 @@ static bool CC_XTC_AssignReg(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
 
     const unsigned NumArgRegs = array_lengthof(ArgRegs);
     unsigned Reg = State.AllocateReg(ArgRegs, NumArgRegs);
-    if (!Reg) return false;
-
+    if (!Reg) {
+        llvm_unreachable("Cannot assign reg!");
+        return false;
+    }
     unsigned SizeInBytes = ValVT.getSizeInBits() >> 3;
     State.AllocateStack(SizeInBytes, SizeInBytes);
     State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
@@ -943,6 +992,8 @@ LowerCall(TargetLowering::CallLoweringInfo &CLI,
   CallingConv::ID CallConv              = CLI.CallConv;
   bool isVarArg                         = CLI.IsVarArg;
 
+  DEBUG(dbgs() << "Lowering CALL\n" );
+
   // XTC does not yet support tail call optimization
   isTailCall = false;
 
@@ -967,6 +1018,8 @@ LowerCall(TargetLowering::CallLoweringInfo &CLI,
   if (isVarArg && NumBytes < 24) NumBytes = 24;
 
   Chain = DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(NumBytes, true));
+  DEBUG(dbgs() << "CALLSEQ_START\n");
+  Chain.dump();
 
   SmallVector<std::pair<unsigned, SDValue>, 8> RegsToPass;
   SmallVector<SDValue, 8> MemOpChains;
@@ -1071,12 +1124,14 @@ LowerCall(TargetLowering::CallLoweringInfo &CLI,
   if (InFlag.getNode())
     Ops.push_back(InFlag);
 
-  Chain  = DAG.getNode(XTCISD::JmpLink, dl, NodeTys, &Ops[0], Ops.size());
+  Chain  = DAG.getNode(XTCISD::CALL, dl, NodeTys, &Ops[0], Ops.size());
   InFlag = Chain.getValue(1);
 
   // Create the CALLSEQ_END node.
+
   Chain = DAG.getCALLSEQ_END(Chain, DAG.getIntPtrConstant(NumBytes, true),
                              DAG.getIntPtrConstant(0, true), InFlag);
+
   if (!Ins.empty())
     InFlag = Chain.getValue(1);
 
@@ -1100,6 +1155,7 @@ LowerCallResult(SDValue Chain, SDValue InFlag, CallingConv::ID CallConv,
 
   CCInfo.AnalyzeCallResult(Ins, RetCC_XTC);
 
+  DEBUG(dbgs()<<"LowerCallResult: RVlocs "<<RVLocs.size()<<"\n");
   // Copy all of the result registers out of their specified physreg.
   for (unsigned i = 0; i != RVLocs.size(); ++i) {
     Chain = DAG.getCopyFromReg(Chain, dl, RVLocs[i].getLocReg(),
@@ -1490,7 +1546,10 @@ bool XTCTargetLowering::SelectAddrRegReg(SDValue N, SDValue &Base, SDValue &Inde
 
     DEBUG(dbgs()<<"ALVIE "<<__PRETTY_FUNCTION__<<" called\n");
 
-    if (N.getOpcode() == ISD::FrameIndex) return false;
+    if (N.getOpcode() == ISD::FrameIndex) {
+        DEBUG(dbgs() << "Frame index in SelectAddrRegReg, promoting to RegImm");
+        return false;
+    }
     if (N.getOpcode() == ISD::TargetExternalSymbol ||
         N.getOpcode() == ISD::TargetGlobalAddress)
         return false;  // direct calls.
@@ -1520,7 +1579,7 @@ bool XTCTargetLowering::SelectAddrRegImm(SDValue N, SDValue &Base, SDValue &Disp
     DEBUG(dbgs()<<__PRETTY_FUNCTION__<<"SelectAddrRegImm called\n");
 
     if (SelectAddrRegReg(N, Base, Disp,DAG))
-    return false;
+        return false;
 
   if (N.getOpcode() == ISD::ADD || N.getOpcode() == ISD::OR) {
     int32_t imm = 0;

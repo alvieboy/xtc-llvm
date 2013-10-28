@@ -30,7 +30,11 @@ namespace llvm {
       GT,
       LT,
       GE,
-      LE
+      LE,
+      UGT,
+      ULT,
+      UGE,
+      ULE
     };
 
     inline static CC getOppositeCondition(CC cc) {
@@ -45,17 +49,7 @@ namespace llvm {
       }
     }
 
-    inline static const char *XTCCCToString(CC cc) {
-      switch (cc) {
-      default: llvm_unreachable("Unknown condition code");
-      case EQ: return "eq";
-      case NE: return "ne";
-      case GT: return "gt";
-      case LT: return "lt";
-      case GE: return "ge";
-      case LE: return "le";
-      }
-    }
+    const char *XTCCCToString(CC cc);
   }
 
   namespace XTCISD {
@@ -91,7 +85,9 @@ namespace llvm {
       BRCOND,
       CMP,
       SETCC,
-      BR_CC
+      BR_CC,
+
+      CALL
     };
   }
 

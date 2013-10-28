@@ -167,19 +167,39 @@ SDNode* XTCDAGToDAGISel::Select(SDNode *Node) {
     case ISD::GLOBAL_OFFSET_TABLE:
         DEBUG(dbgs()<<"ALVIE: "<<"is GOT");
         return getGlobalBaseReg();
-#if 0
+
     case ISD::FrameIndex: {
-        DEBUG(dbgs()<<"ALVIE: "<<"is FrameIndex");
+
+        DEBUG(dbgs()<<"ALVIE: "<<"is FrameIndex\n");
+        Node->dump();
         SDValue imm = CurDAG->getTargetConstant(0, MVT::i32);
+
         int FI = dyn_cast<FrameIndexSDNode>(Node)->getIndex();
+
         EVT VT = Node->getValueType(0);
+
         SDValue TFI = CurDAG->getTargetFrameIndex(FI, VT);
-        unsigned Opc = XTC::ADDAGG;
+
+        unsigned Opc = XTC::ADDI;
+
+        {
+            unsigned i;
+            for (i=0;i<Node->getNumOperands();i++) {
+                DEBUG(dbgs() << "Operand "<<i<<":\n");
+                Node->getOperand(i)->dump();
+            }
+        }
+        DEBUG( dbgs() <<"TFI: ");
+
+        TFI.dump();
+
+
         if (Node->hasOneUse())
-            return CurDAG->SelectNodeTo(Node, Opc, VT, TFI, imm);
-        return CurDAG->getMachineNode(Opc, dl, VT, TFI, imm);
+            return CurDAG->SelectNodeTo(Node, Opc, VT, imm, TFI);
+
+        return CurDAG->getMachineNode(Opc, dl, VT, imm, TFI);
+
     }
-#endif
 
     case ISD::STORE:
         {

@@ -43,14 +43,14 @@ let Namespace = "XTC" in {
   def r6  : GPR< 6,  "r6">,   DwarfRegNum<[6]>;
   def r7  : GPR< 7,  "r7">,   DwarfRegNum<[7]>;
 
-  def r8  : GPR< 0,  "r8">,   DwarfRegNum<[8]>;
-  def r9  : GPR< 1,  "r9">,   DwarfRegNum<[9]>;
-  def r10 : GPR< 2,  "r10">,   DwarfRegNum<[10]>;
-  def r11 : GPR< 3,  "r11">,   DwarfRegNum<[11]>;
-  def r12 : GPR< 4,  "r12">,   DwarfRegNum<[12]>;
-  def r13 : GPR< 5,  "r13">,   DwarfRegNum<[13]>;
-  def r14 : GPR< 6,  "r14">,   DwarfRegNum<[14]>;
-  def r15 : GPR< 7,  "r15">,   DwarfRegNum<[15]>;
+  def r8  : GPR< 8,  "r8">,   DwarfRegNum<[8]>;
+  def r9  : GPR< 9,  "r9">,   DwarfRegNum<[9]>;
+  def r10 : GPR< 10,  "r10">,   DwarfRegNum<[10]>;
+  def r11 : GPR< 11,  "r11">,   DwarfRegNum<[11]>;
+  def r12 : GPR< 12,  "r12">,   DwarfRegNum<[12]>;
+  def r13 : GPR< 13,  "r13">,   DwarfRegNum<[13]>;
+  def r14 : GPR< 14,  "r14">,   DwarfRegNum<[14]>;
+  def r15 : GPR< 15,  "r15">,   DwarfRegNum<[15]>;
   
   // Other regs
   def PC   : SPR<0, "pc">,    DwarfRegNum<[16]>;

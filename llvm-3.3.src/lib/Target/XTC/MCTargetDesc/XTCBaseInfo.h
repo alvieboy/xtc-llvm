@@ -61,7 +61,7 @@ namespace XTCII {
 }
 
 static inline bool isGPRXTCRegister(unsigned Reg) {
-  return Reg <= 7;
+  return Reg <= 15;
 }
 
 static inline bool isDARXTCRegister(unsigned Reg) {
@@ -78,7 +78,7 @@ static inline bool isDARXTCRegister(unsigned Reg) {
 /// getXTCRegisterNumbering - Given the enum value for some register, e.g.
 /// XTC::R0, return the number that it corresponds to (e.g. 0).
 static inline unsigned getXTCRegisterNumbering(unsigned RegEnum) {
-  switch (RegEnum) {
+    switch (RegEnum) {
     case XTC::r0     : return 0;
     case XTC::r1     : return 1;
     case XTC::r2     : return 2;
@@ -87,6 +87,15 @@ static inline unsigned getXTCRegisterNumbering(unsigned RegEnum) {
     case XTC::r5     : return 5;
     case XTC::r6     : return 6;
     case XTC::r7     : return 7;
+    case XTC::r8     : return 8;
+    case XTC::r9     : return 9;
+    case XTC::r10     : return 10;
+    case XTC::r11     : return 11;
+    case XTC::r12     : return 12;
+    case XTC::r13     : return 13;
+    case XTC::r14     : return 14;
+    case XTC::r15     : return 15;
+
     default: llvm_unreachable("Unknown register number!");
   }
 }
@@ -94,7 +103,7 @@ static inline unsigned getXTCRegisterNumbering(unsigned RegEnum) {
 /// getRegisterFromNumbering - Given the enum value for some register, e.g.
 /// XTC::R0, return the number that it corresponds to (e.g. 0).
 static inline unsigned getGPRXTCRegisterFromNumbering(unsigned Reg) {
-  switch (Reg) {
+    switch (Reg) {
     case 0  : return XTC::r0;
     case 1  : return XTC::r1;
     case 2  : return XTC::r2;
@@ -103,6 +112,7 @@ static inline unsigned getGPRXTCRegisterFromNumbering(unsigned Reg) {
     case 5  : return XTC::r5;
     case 6  : return XTC::r6;
     case 7  : return XTC::r7;
+
     default: llvm_unreachable("Unknown register number!");
   }
 }

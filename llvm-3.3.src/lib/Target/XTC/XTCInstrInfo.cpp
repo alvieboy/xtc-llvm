@@ -28,7 +28,7 @@
 using namespace llvm;
 
 XTCInstrInfo::XTCInstrInfo(XTCTargetMachine &tm)
-  : XTCGenInstrInfo(),//XTC::ADJCALLSTACKDOWN, XTC::ADJCALLSTACKUP),
+  : XTCGenInstrInfo(XTC::ADJCALLSTACKDOWN, XTC::ADJCALLSTACKUP),
     TM(tm), RI(*TM.getSubtargetImpl(), *this) {}
 
 static bool isZeroImm(const MachineOperand &op) {
@@ -62,7 +62,7 @@ isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex) const {
 /// any side effects other than storing to the stack slot.
 unsigned XTCInstrInfo::
 isStoreToStackSlot(const MachineInstr *MI, int &FrameIndex) const {
-    if (MI->getOpcode() == XTC::STI) {
+    if (MI->getOpcode() == XTC::STWI) {
     if ((MI->getOperand(1).isFI()) && // is a stack slot
         (MI->getOperand(2).isImm()) &&  // the imm is zero
         (isZeroImm(MI->getOperand(2)))) {
@@ -86,12 +86,11 @@ copyPhysReg(MachineBasicBlock &MBB,
             MachineBasicBlock::iterator I, DebugLoc DL,
             unsigned DestReg, unsigned SrcReg,
             bool KillSrc) const {
-    DEBUG(dbgs()<<"Copy from reg "<<SrcReg<<" to reg "<<DestReg<<"\n");
-    llvm_unreachable("Cannot");
-    /*
+    //DEBUG(dbgs()<<"Copy from reg "<<SrcReg<<" to reg "<<DestReg<<"\n");
+    //llvm_unreachable("Cannot");
+
     llvm::BuildMI(MBB, I, DL, get(XTC::MOV), DestReg)
     .addReg(SrcReg, getKillRegState(KillSrc));
-    */
 }
 
 void XTCInstrInfo::
@@ -102,7 +101,7 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
     DebugLoc DL;
     if (RC == &XTC::GPRegsRegClass) {
-        BuildMI(MBB, I, DL, get(XTC::STI)).addReg(SrcReg,getKillRegState(isKill))
+        BuildMI(MBB, I, DL, get(XTC::STWI)).addReg(SrcReg,getKillRegState(isKill))
             .addFrameIndex(FI).addImm(0); //.addFrameIndex(FI);
 
     } else {

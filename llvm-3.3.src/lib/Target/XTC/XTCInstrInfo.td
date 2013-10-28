@@ -16,7 +16,9 @@ include "XTCInstrFormats.td"
 // XTC type profiles
 //===----------------------------------------------------------------------===//
 
-def SDT_XTCSelectCC 	: SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>]>;
+def SDT_XTCSelectCC 	: SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>, SDTCisSameAs<1, 2>, SDTCisVT<3, i32>]>;
+
+
 def SDT_XTCSetCC     : SDTypeProfile<1, 2,
                                   [SDTCisVT<0, i32>,
                                    SDTCisVT<1, i32>, SDTCisVT<2, i32>]>;
@@ -25,8 +27,10 @@ def SDT_XTCRet     	: SDTypeProfile<0, 1, [SDTCisInt<0>]>;
 
 //def SDT_XTCIRet    : SDTypeProfile<0, 1, [SDTCisInt<0>]>;
 //def SDT_XTCJmpLink : SDTypeProfile<0, -1, [SDTCisVT<0, i32>]>;
-//def SDT_MBCallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>]>;
-//def SDT_MBCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
+
+def SDT_XTCCallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>]>;
+def SDT_XTCCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
+
 def SDT_XTCBRCOND   : SDTypeProfile<0, 3,
                                   [SDTCisVT<0, OtherVT>,
                                    SDTCisVT<1, i32>,SDTCisVT<1, i32>]>;
@@ -44,8 +48,7 @@ def SDT_XTCCmp          : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
 def XTCRet     : SDNode<"XTCISD::Ret", SDT_XTCRet,
                            [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 
-def XTCSelectCC: SDNode<"XTCISD::SELECT_CC", SDT_XTCSelectCC,
-                           [SDNPInGlue]>;
+def XTCSelectCC: SDNode<"XTCISD::SELECT_CC", SDT_XTCSelectCC, [SDNPInGlue]>;
 
 def XTCWrapper   : SDNode<"XTCISD::Wrap", SDTIntUnaryOp>;
 
@@ -55,6 +58,10 @@ def XTCbrcc    : SDNode<"XTCISD::BR_CC", SDT_XTCBRCC,
                             [SDNPHasChain, SDNPInGlue]>;
 
 def XTCcmp : SDNode<"XTCISD::CMP", SDT_XTCCmp, [SDNPOutGlue]>;
+
+def XTCcallseq_start : SDNode<"ISD::CALLSEQ_START", SDT_XTCCallSeqStart, [SDNPHasChain, SDNPOutGlue]>;
+
+def XTCcallseq_end   : SDNode<"ISD::CALLSEQ_END", SDT_XTCCallSeqEnd, [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
 //===----------------------------------------------------------------------===//
 // XTC Instruction Predicate Definitions.
@@ -106,6 +113,9 @@ def memri : Operand<iPTR> {
   let ParserMatchClass = XTCMemAsmOperand;
 }
 
+let PrintMethod = "printCCOperand" in
+  def cc : Operand<i32>;
+
 // XTC Address Mode. SDNode frameindex could possibily be a match
 // since load and store instructions from stack used it.
 
@@ -133,6 +143,34 @@ let Constraints="$dst = $src1" in  {
              !strconcat(instr_asm, "   $dst, $src2"),
                [(set GPRegs:$dst, (OpNode GPRegs:$src1, GPRegs:$src2))], itin>;
 }
+
+
+let Defs = [r15], Uses = [r15] in {
+def ADJCALLSTACKDOWN : XTCPseudo<(outs), (ins i32imm:$amt),
+                               "!ADJCALLSTACKDOWN $amt",
+                               [(XTCcallseq_start timm:$amt)]>;
+def ADJCALLSTACKUP : XTCPseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
+                            "!ADJCALLSTACKUP $amt1",
+                            [(XTCcallseq_end timm:$amt1, timm:$amt2)]>;
+}
+
+def SDT_XTCCall    : SDTypeProfile<0, -1, [SDTCisVT<0, i32>]>;
+def call          : SDNode<"XTCISD::CALL", SDT_XTCCall,
+                           [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
+                            SDNPVariadic]>;
+
+let isCall=1, hasDelaySlot=1 in {
+
+    def CALL: XTCGENERIC<(outs), (ins memri:$src, variable_ops),
+        "call $src", [ (call iaddr:$src)], IIC_ALU1>;
+
+    def CALLR: XTCGENERIC<(outs), (ins memrr:$src, variable_ops),
+        "call $src", [ (call xaddr:$src)], IIC_ALU1>;
+
+}
+
+
+
 
 let isAsCheapAsAMove = 1 in {
   multiclass Arith<bits<3> aluop, string instr_asm, SDNode OpNode,
@@ -164,7 +202,27 @@ let mayLoad=1,canFoldAsLoad=1,isReMaterializable=1 in {
                   "ldwi $addr, $dst",
                   [(set i32:$dst, (load iaddr:$addr))], IIC_ALU1>;
 
+    def LDB: XTCGENERIC<(outs GPRegs:$dst), (ins memrr:$addr),
+                  "ldb $addr, $dst",
+                  [(set i32:$dst, (zextloadi8 xaddr:$addr))], IIC_ALU1>;
+
+    def LDBI: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
+                  "ldbi $addr, $dst",
+                  [(set i32:$dst, (zextloadi8 iaddr:$addr))], IIC_ALU1>;
+
+    def LDS: XTCGENERIC<(outs GPRegs:$dst), (ins memrr:$addr),
+                  "lds $addr, $dst",
+        [(set i32:$dst, (zextloadi16 xaddr:$addr))], IIC_ALU1>;
+
+    def LDSI: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
+                  "lds $addr, $dst",
+                  [(set i32:$dst, (zextloadi16 iaddr:$addr))], IIC_ALU1>;
+
 }
+
+def : Pat<(i32 (extloadi8 xaddr:$src)), (LDB xaddr:$src)>;
+def : Pat<(i32 (extloadi16 xaddr:$src)), (LDS xaddr:$src)>;
+
 
 def NOP: NOP<0, "nop", IIC_ALU1>;
 
@@ -174,7 +232,7 @@ def XTCbrcond    : SDNode<"XTCISD::BRCOND",
 
 
 
-let Constraints="$dst = $src1" in {
+let Constraints="$dst = $src1", Defs = [FLAGS] in {
     def ADDI: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src1, i32imm:$v),
     "addi $v, $dst", [(set GPRegs:$dst, (add GPRegs:$src1, imm:$v))], IIC_ALU1>;
 }
@@ -190,6 +248,7 @@ let isCommutable=1 in {
     defm AND:  Arith<0x2, "and ",  and,  IIC_ALU1>;
     defm OR:   Arith<0x3, "or ",   or,   IIC_ALU1>;
     defm SUB:  Arith<0x3, "sub ",  sub,  IIC_ALU1>;
+    defm SHL:  Arith<0x3, "shl ",  shl,  IIC_ALU1>;
 }
 
 
@@ -197,31 +256,38 @@ let isReturn=1, isTerminator=1, hasDelaySlot = 1 in {
     def RET:    XTCGENERIC<(outs), (ins), "RET", [(XTCRet r1)], IIC_ALU1>;
 }
 
-/*
+
 let Constraints = "$ptr = $ptr_wb" in {
 
-    def STPOSTI: XTCGENERIC<(outs GPRegs:$ptr_wb), (ins GPRegs:$val, GPRegs:$ptr, i32imm:$offset),
-            "STI+ $val, [$ptr] $offset ", [(set GPRegs:$ptr_wb,
+    def STWPOSTI: XTCGENERIC<(outs GPRegs:$ptr_wb), (ins GPRegs:$val, GPRegs:$ptr, i32imm:$offset),
+            "stw+ $val, [$ptr] $offset ", [(set GPRegs:$ptr_wb,
                   (post_store GPRegs:$val, GPRegs:$ptr, imm:$offset))], IIC_ALU1>;
 
 
-    def STPREI: XTCGENERIC<(outs GPRegs:$ptr_wb), (ins GPRegs:$val, GPRegs:$ptr, i32imm:$offset),
-            "ST+I $val, [$ptr] $offset ", [(set GPRegs:$ptr_wb,
+    def STWPREI: XTCGENERIC<(outs GPRegs:$ptr_wb), (ins GPRegs:$val, GPRegs:$ptr, i32imm:$offset),
+            "st+w $val, [$ptr] $offset ", [(set GPRegs:$ptr_wb,
                   (pre_store GPRegs:$val, GPRegs:$ptr, imm:$offset))], IIC_ALU1>;
 }
-*/
+
 //def POSTSTORE: ST_PostInc <"memw", "STriw", IntRegs, i32imm>, AddrModeRel;
 
 //def: Pat<(pre_store (i32 GPRegs:$src1), GPRegs:$src2, (i32 imm:$offset)), (POSTSTORE (i32 GPRegs:$src1), GPRegs:$src2, (i32 imm:$offset))>;
 
-def STR:  XTCGENERIC<(outs), (ins GPRegs:$dst, GPRegs:$val),
-    "ST $val, [$dst]", [(store (i32 GPRegs:$val) ,xaddr:$dst)], IIC_ALU1>;
+def STR:  XTCGENERIC<(outs), (ins memrr:$dst, GPRegs:$val),
+    "stw $val, [$dst]", [(store (i32 GPRegs:$val) ,xaddr:$dst)], IIC_ALU1>;
 
-def ST:   XTCGENERIC<(outs), (ins GPRegs:$src, memrr:$addr),
-    "ST $src, [$addr]", [(store (i32 GPRegs:$src) ,xaddr:$addr)], IIC_ALU1>;
+def STB:  XTCGENERIC<(outs), (ins memrr:$dst, GPRegs:$val),
+    "stb $val, [$dst]", [(truncstorei8 (i32 GPRegs:$val) ,xaddr:$dst)], IIC_ALU1>;
 
-def STI:   XTCGENERIC<(outs), (ins GPRegs:$src, memri:$addr),
-    "ST $src, [$addr]", [(store (i32 GPRegs:$src) ,iaddr:$addr)], IIC_ALU1>;
+def STBI:  XTCGENERIC<(outs), (ins memri:$dst, GPRegs:$val),
+    "stbi $val, [$dst]", [(truncstorei8 (i32 GPRegs:$val) ,iaddr:$dst)], IIC_ALU1>;
+
+def STS:  XTCGENERIC<(outs), (ins memrr:$dst, GPRegs:$val),
+    "sts $val, [$dst]", [(truncstorei16 (i32 GPRegs:$val) ,xaddr:$dst)], IIC_ALU1>;
+
+def STWI:   XTCGENERIC<(outs), (ins memri:$dst, GPRegs:$val),
+    "stwi $val, [$dst]", [(store (i32 GPRegs:$val), iaddr:$dst)], IIC_ALU1>;
+
 
 
 //let usesCustomInserter = 1,
@@ -256,9 +322,9 @@ let mayLoad=1 in {
       */
 
 
-//let isAsCheapAsAMove=1 in {
-//    def MOV: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src), "MOV $src, $dst", [(set GPRegs:$dst ,GPRegs:$src)], IIC_ALU1>;
-//}
+let isAsCheapAsAMove=1 in {
+    def MOV: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src), "copy $src, $dst", [(set GPRegs:$dst ,GPRegs:$src)], IIC_ALU1>;
+}
 
 //def : Pat<(store (i32 GPRegs:$dst), (i32 ARegs:$iaddr)),STGA>;
 
@@ -290,8 +356,8 @@ let isBranch = 1, isTerminator = 1, hasCtrlDep = 1,
 
 let Uses = [FLAGS], isBranch = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1, hasCtrlDep = 1  in {
 
-def BCOND: XTCGENERIC<(outs), (ins brtarget:$dst, simm32:$cc),
-    "b$cc $dst",
+def BCOND: XTCGENERIC<(outs), (ins brtarget:$dst, cc:$cc),
+    "bri$cc $dst",
     [(XTCbrcc bb:$dst, imm:$cc)], IIC_ALU1>;
 }
 
@@ -321,11 +387,14 @@ let Uses = [FLAGS] in {
 
 
 // Jump tables, global addresses, and constant pools
-/*
+
 def : Pat<(XTCWrapper tglobaladdr:$in), (IM tglobaladdr:$in)>;
 def : Pat<(XTCWrapper tjumptable:$in),  (IM tjumptable:$in)>;
 def : Pat<(XTCWrapper tconstpool:$in),  (IM tconstpool:$in)>;
-*/
+
+def : Pat<(call tglobaladdr:$dst),      (IM tglobaladdr:$dst)>;
+
+//def : Pat<(call texternalsym:$dst),     (CALL texternalsym:$dst)>;
 
 /*
 def : Pat<(brcond (setcc (i32 GPRegs:$L), (i32 0), SETEQ), bb:$T),
@@ -355,6 +424,43 @@ def : Pat<(brcond (setcc (i32 GPRegs:$L), (i32 0), SETUGE), bb:$T),
 def : Pat<(brcond (setcc (i32 GPRegs:$L), (i32 0), SETULE), bb:$T),
           (BLE (CMPU (i32 R0), GPRegs:$L), bb:$T)>;
 */
+
+let usesCustomInserter = 1 in {
+  def SELECT_CC : XTCPseudo<(outs GPRegs:$dst),
+  (ins simm32:$cond, GPRegs:$T, GPRegs:$F),
+      "# SELECT_CC PSEUDO!",
+      [(set GPRegs:$dst,
+        (XTCSelectCC i32:$T, i32:$F, imm:$cond))]>;
+}
+
+let usesCustomInserter = 1 in {
+  def SELECT_CCr : XTCPseudo<(outs GPRegs:$dst),
+  (ins GPRegs:$cond, GPRegs:$T, GPRegs:$F),
+      "# SELECT_CC PSEUDO!",
+      [(set GPRegs:$dst,
+        (XTCSelectCC GPRegs:$cond, GPRegs:$T, GPRegs:$F))]>;
+}
+
+def : Pat<(select (setne GPRegs:$lhs, 0), GPRegs:$T, GPRegs:$F),
+        (SELECT_CC GPRegs:$lhs, GPRegs:$T, GPRegs:$F)>;
+
+def : Pat<(select (seteq GPRegs:$lhs, 0), GPRegs:$T, GPRegs:$F),
+        (SELECT_CC GPRegs:$lhs, GPRegs:$F, GPRegs:$T)>;
+                            /*
+def : Pat<(select (setle GPRegs:$lhs, GPRegs:$rhs), GPRegs:$T, GPRegs:$F),
+          (SELECT_CC (LSS_3r GPRegs:$rhs, GPRegs:$lhs), GPRegs:$F, GPRegs:$T)>;
+def : Pat<(select (setule GPRegs:$lhs, GPRegs:$rhs), GPRegs:$T, GPRegs:$F),
+          (SELECT_CC (LSU_3r GPRegs:$rhs, GPRegs:$lhs), GPRegs:$F, GPRegs:$T)>;
+def : Pat<(select (setge GPRegs:$lhs, GPRegs:$rhs), GPRegs:$T, GPRegs:$F),
+          (SELECT_CC (LSS_3r GPRegs:$lhs, GPRegs:$rhs), GPRegs:$F, GPRegs:$T)>;
+def : Pat<(select (setuge GPRegs:$lhs, GPRegs:$rhs), GPRegs:$T, GPRegs:$F),
+          (SELECT_CC (LSU_3r GPRegs:$lhs, GPRegs:$rhs), GPRegs:$F, GPRegs:$T)>;
+def : Pat<(select (setne GPRegs:$lhs, GPRegs:$rhs), GPRegs:$T, GPRegs:$F),
+          (SELECT_CC (EQ_3r GPRegs:$lhs, GPRegs:$rhs), GPRegs:$F, GPRegs:$T)>;
+def : Pat<(select (setne GPRegs:$lhs, immUs:$rhs), GPRegs:$T, GPRegs:$F),
+          (SELECT_CC (EQ_2rus GPRegs:$lhs, immUs:$rhs), GPRegs:$F, GPRegs:$T)>;
+                              */
+
 
 
 /*
