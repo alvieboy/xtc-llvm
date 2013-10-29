@@ -385,7 +385,7 @@ void XTCFrameLowering::emitPrologue(MachineFunction &MF) const {
   }
 
   // Adjust stack : addi R1, R1, -imm
-  BuildMI(MBB, MBBI, DL, TII.get(XTC::ADDI), XTC::r14).addReg(XTC::r14).addImm(-StackSize);
+  BuildMI(MBB, MBBI, DL, TII.get(XTC::ADDI), XTC::r15).addReg(XTC::r15).addImm(-StackSize);
 /*
   // swi  R15, R1, stack_loc
   if (MFI->adjustsStack() || requiresRA) {
@@ -414,37 +414,40 @@ void XTCFrameLowering::emitEpilogue(MachineFunction &MF,
     *static_cast<const XTCInstrInfo*>(MF.getTarget().getInstrInfo());
 
   DebugLoc dl = MBBI->getDebugLoc();
-#if 0
+
   CallingConv::ID CallConv = MF.getFunction()->getCallingConv();
-  bool requiresRA = CallConv == CallingConv::MBLAZE_INTR;
 
   // Get the FI's where RA and FP are saved.
   int FPOffset = XTCFI->getFPStackOffset();
   int RAOffset = XTCFI->getRAStackOffset();
 
   if (hasFP(MF)) {
-    // add R1, R19, R0
-    BuildMI(MBB, MBBI, dl, TII.get(XTC::ADD), XTC::R1)
-      .addReg(XTC::R19).addReg(XTC::R0);
+      /* Save current FP into stack */
 
-    // lwi  R19, R1, stack_loc
-    BuildMI(MBB, MBBI, dl, TII.get(XTC::LWI), XTC::R19)
-      .addReg(XTC::R1).addImm(FPOffset);
+    //  BuildMI(MBB, MBBI, dl, TII.get(XTC::STWPREI)).addReg(XTC::r14, RegState::Kill).addReg(XTC::r15).addImm(-4);
+
+      /* Copy from current SP */
+
+      BuildMI(MBB, MBBI, dl, TII.get(XTC::COPY), XTC::r15).addReg(XTC::r14);
+
+      // Mark the FramePtr as live-in in every block except the entry.
+      for (MachineFunction::iterator I = llvm::next(MF.begin()), E = MF.end();
+           I != E; ++I)
+          I->addLiveIn(XTC::r14);
   }
-
+  /*
   // lwi R15, R1, stack_loc
   if (MFI->adjustsStack() || requiresRA) {
     BuildMI(MBB, MBBI, dl, TII.get(XTC::LWI), XTC::R15)
-      .addReg(XTC::R1).addImm(RAOffset);
-  }
-#endif
+    .addReg(XTC::R1).addImm(RAOffset);
+    */
+
 
   // Get the number of bytes from FrameInfo
   int StackSize = (int) MFI->getStackSize();
-  // addi R1, R1, imm
   if (StackSize) {
-    BuildMI(MBB, MBBI, dl, TII.get(XTC::ADDI), XTC::r14)
-      .addReg(XTC::r14).addImm(StackSize);
+    BuildMI(MBB, MBBI, dl, TII.get(XTC::ADDI), XTC::r15)
+      .addReg(XTC::r15).addImm(StackSize);
   }
 }
 

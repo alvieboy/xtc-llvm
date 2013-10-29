@@ -189,7 +189,11 @@ static bool hasUnknownSideEffects(MachineBasicBlock::iterator &I) {
 
     unsigned op = I->getOpcode();
 
-    if ( op == XTC::IM )
+    /*
+     if ( op == XTC::IM )
+        return false;
+        */
+    if (op != XTC::CMP && op != XTC::CMPI)
         return false;
 
     return true;
@@ -215,47 +219,55 @@ static bool hasUnknownSideEffects(MachineBasicBlock::iterator &I) {
 
 static MachineBasicBlock::iterator
 findDelayInstr(MachineBasicBlock &MBB,MachineBasicBlock::iterator slot) {
-  MachineBasicBlock::iterator I = slot;
-  while (true) {
-    if (I == MBB.begin())
-      break;
+    MachineBasicBlock::iterator I = slot;
 
-    --I;
-    if (I->hasDelaySlot() || I->isBranch() || isDelayFiller(MBB,I) ||
-        I->isCall() || I->isReturn() || I->isBarrier() || 
-        hasUnknownSideEffects(I))
-      break;
-  /*
-    if (hasImmInstruction(I) || delayHasHazard(I,slot))
-      continue;
-    */
-    return I;
-  }
+    // For non-conditional branches we can accept
+    // instructions that actually set CPU flags.
 
-  return MBB.end();
+    //unsigned opc = I->getOpcode();
+    //bool isConditional = (opc == XTCISD::BCOND);
+
+    while (true) {
+        if (I == MBB.begin())
+            break;
+
+        --I;
+        if (I->hasDelaySlot() || I->isBranch() || isDelayFiller(MBB,I) ||
+            I->isCall() || I->isReturn() || I->isBarrier() ||
+            hasUnknownSideEffects(I))
+            break;
+        /*
+         if (hasImmInstruction(I) || delayHasHazard(I,slot))
+         continue;
+         */
+        return I;
+    }
+
+    return MBB.end();
 }
 
 /// runOnMachineBasicBlock - Fill in delay slots for the given basic block.
 /// Currently, we fill delay slots with NOPs. We assume there is only one
 /// delay slot per delayed instruction.
 bool Filler::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
-  bool Changed = false;
-  for (MachineBasicBlock::iterator I = MBB.begin(); I != MBB.end(); ++I)
-    if (I->hasDelaySlot()) {
-      MachineBasicBlock::iterator D = MBB.end();
-      MachineBasicBlock::iterator J = I;
+    bool Changed = false;
+    for (MachineBasicBlock::iterator I = MBB.begin(); I != MBB.end(); ++I)
 
-      if (!MBDisableDelaySlotFiller)
-        D = findDelayInstr(MBB,I);
+        if (I->hasDelaySlot()) {
+            MachineBasicBlock::iterator D = MBB.end();
+            MachineBasicBlock::iterator J = I;
 
-      ++FilledSlots;
-      Changed = true;
-      if (D == MBB.end())
-        BuildMI(MBB, ++J, I->getDebugLoc(), TII->get(XTC::NOP));
-      else
-          MBB.splice(++J, &MBB, D);
-    }
-  return Changed;
+            if (!MBDisableDelaySlotFiller)
+                D = findDelayInstr(MBB,I);
+
+            ++FilledSlots;
+            Changed = true;
+            if (D == MBB.end())
+                BuildMI(MBB, ++J, I->getDebugLoc(), TII->get(XTC::NOP));
+            else
+                MBB.splice(++J, &MBB, D);
+        }
+    return Changed;
 }
 
 /// createXTCDelaySlotFillerPass - Returns a pass that fills in delay
