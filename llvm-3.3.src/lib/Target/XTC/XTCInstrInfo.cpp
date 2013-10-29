@@ -118,7 +118,7 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     DebugLoc DL;
 
     if (RC == &XTC::GPRegsRegClass) {
-        BuildMI(MBB, I, DL, get(XTC::LDW), DestReg)
+        BuildMI(MBB, I, DL, get(XTC::LDWI), DestReg)
             .addFrameIndex(FI).addImm(0); //.addFrameIndex(FI);
     } else {
         llvm_unreachable("Cannot load this register from stack slot");

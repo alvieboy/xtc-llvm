@@ -74,11 +74,15 @@ getCalleeSavedRegs(const MachineFunction *MF) const {
 
 BitVector XTCRegisterInfo::
 getReservedRegs(const MachineFunction &MF) const {
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+
   BitVector Reserved(getNumRegs());
   Reserved.set(XTC::r0);
   Reserved.set(XTC::r1);
 
-  Reserved.set(XTC::r14);
+  if (TFI->hasFP(MF))
+      Reserved.set(XTC::r14);
+
   Reserved.set(XTC::r15);
   return Reserved;
 
@@ -138,7 +142,10 @@ processFunctionBeforeFrameFinalized(MachineFunction &MF, RegScavenger *) const {
 unsigned XTCRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
 
-  return XTC::r14;
+  if (TFI->hasFP(MF))
+      return XTC::r14;
+  return XTC::r15;
+
 }
 
 unsigned XTCRegisterInfo::getEHExceptionRegister() const {
