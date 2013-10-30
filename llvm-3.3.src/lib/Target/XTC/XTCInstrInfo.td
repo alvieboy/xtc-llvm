@@ -189,10 +189,11 @@ let neverHasSideEffects = 1 in  {
 let isAsCheapAsAMove = 1, isReMaterializable=1 in {
 
     def IM: XTCGENERIC<(outs GPRegs:$a), (ins i32imm:$src),
-       "limr $src, $a", [(set GPRegs:$a , imm:$src)], IIC_ALU1>;
+       "limr $src, $a", [(set (i32 GPRegs:$a) , imm:$src)], IIC_ALU1>;
 }
 
 let mayLoad=1,canFoldAsLoad=1,isReMaterializable=1 in {
+
 
     def LDW: XTCGENERIC<(outs GPRegs:$dst), (ins memrr:$addr),
                   "ldw $addr, $dst",
@@ -212,16 +213,16 @@ let mayLoad=1,canFoldAsLoad=1,isReMaterializable=1 in {
 
     def LDS: XTCGENERIC<(outs GPRegs:$dst), (ins memrr:$addr),
                   "lds $addr, $dst",
-        [(set i32:$dst, (zextloadi16 xaddr:$addr))], IIC_ALU1>;
+                  [(set i32:$dst, (zextloadi16 xaddr:$addr))], IIC_ALU1>;
 
     def LDSI: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
-                  "lds $addr, $dst",
+                  "ldsi $addr, $dst",
                   [(set i32:$dst, (zextloadi16 iaddr:$addr))], IIC_ALU1>;
 
 }
 
-def : Pat<(i32 (extloadi8 xaddr:$src)), (LDB xaddr:$src)>;
-def : Pat<(i32 (extloadi16 xaddr:$src)), (LDS xaddr:$src)>;
+def : Pat<(i32 (extloadi8 iaddr:$src)), (LDBI iaddr:$src)>;
+def : Pat<(i32 (extloadi16 iaddr:$src)), (LDSI iaddr:$src)>;
 
 
 def NOP: NOP<0, "nop", IIC_ALU1>;
@@ -234,7 +235,7 @@ def XTCbrcond    : SDNode<"XTCISD::BRCOND",
 
 let Constraints="$dst = $src1", Defs = [FLAGS] in {
     def ADDI: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src1, i32imm:$v),
-    "addi $v, $dst", [(set GPRegs:$dst, (add GPRegs:$src1, imm:$v))], IIC_ALU1>;
+    "addi $v, $dst", [(set (i32 GPRegs:$dst), (add (i32 GPRegs:$src1), imm:$v)),(implicit FLAGS)], IIC_ALU1>;
 }
 
 
@@ -249,6 +250,8 @@ let isCommutable=1 in {
     defm OR:   Arith<0x3, "or ",   or,   IIC_ALU1>;
     defm SUB:  Arith<0x3, "sub ",  sub,  IIC_ALU1>;
     defm SHL:  Arith<0x3, "shl ",  shl,  IIC_ALU1>;
+    defm SRL:  Arith<0x3, "srl ",  srl,  IIC_ALU1>;
+    defm XOR:  Arith<0x3, "xor ",  xor,  IIC_ALU1>;
 }
 
 
@@ -261,31 +264,31 @@ let Constraints = "$ptr = $ptr_wb" in {
 
     def STWPOSTI: XTCGENERIC<(outs GPRegs:$ptr_wb), (ins GPRegs:$val, GPRegs:$ptr, i32imm:$offset),
             "stw+ $val, [$ptr] $offset ", [(set GPRegs:$ptr_wb,
-                  (post_store GPRegs:$val, GPRegs:$ptr, imm:$offset))], IIC_ALU1>;
+                  (post_store (i32 GPRegs:$val), (i32 GPRegs:$ptr), imm:$offset))], IIC_ALU1>;
 
 
     def STWPREI: XTCGENERIC<(outs GPRegs:$ptr_wb), (ins GPRegs:$val, GPRegs:$ptr, i32imm:$offset),
             "st+w $val, [$ptr] $offset ", [(set GPRegs:$ptr_wb,
-                  (pre_store GPRegs:$val, GPRegs:$ptr, imm:$offset))], IIC_ALU1>;
+                  (pre_store (i32 GPRegs:$val), (i32 GPRegs:$ptr), imm:$offset))], IIC_ALU1>;
 }
 
 //def POSTSTORE: ST_PostInc <"memw", "STriw", IntRegs, i32imm>, AddrModeRel;
 
 //def: Pat<(pre_store (i32 GPRegs:$src1), GPRegs:$src2, (i32 imm:$offset)), (POSTSTORE (i32 GPRegs:$src1), GPRegs:$src2, (i32 imm:$offset))>;
 
-def STR:  XTCGENERIC<(outs), (ins memrr:$dst, GPRegs:$val),
+def STR:  XTCGENERIC<(outs), (ins GPRegs:$val, memrr:$dst),
     "stw $val, [$dst]", [(store (i32 GPRegs:$val) ,xaddr:$dst)], IIC_ALU1>;
 
-def STB:  XTCGENERIC<(outs), (ins memrr:$dst, GPRegs:$val),
+def STB:  XTCGENERIC<(outs), (ins GPRegs:$val, memrr:$dst),
     "stb $val, [$dst]", [(truncstorei8 (i32 GPRegs:$val) ,xaddr:$dst)], IIC_ALU1>;
 
-def STBI:  XTCGENERIC<(outs), (ins memri:$dst, GPRegs:$val),
+def STBI:  XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
     "stbi $val, [$dst]", [(truncstorei8 (i32 GPRegs:$val) ,iaddr:$dst)], IIC_ALU1>;
 
-def STS:  XTCGENERIC<(outs), (ins memrr:$dst, GPRegs:$val),
+def STS:  XTCGENERIC<(outs), (ins GPRegs:$val, memrr:$dst),
     "sts $val, [$dst]", [(truncstorei16 (i32 GPRegs:$val) ,xaddr:$dst)], IIC_ALU1>;
 
-def STWI:   XTCGENERIC<(outs), (ins memri:$dst, GPRegs:$val),
+def STWI:   XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
     "stwi $val, [$dst]", [(store (i32 GPRegs:$val), iaddr:$dst)], IIC_ALU1>;
 
 
@@ -322,9 +325,24 @@ let mayLoad=1 in {
       */
 
 
-let isAsCheapAsAMove=1 in {
-    def MOV: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src), "copy $src, $dst", [(set GPRegs:$dst ,GPRegs:$src)], IIC_ALU1>;
+
+    def SEXTB: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src),
+    "sextb $src, $dst", [], IIC_ALU1>;
+
+    def SEXTS: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src),
+    "sexts $src, $dst", [], IIC_ALU1>;
+
+def : Pat <(sext_inreg (i32 GPRegs:$src1), i8),
+           (SEXTB GPRegs:$src1)>;
+
+def : Pat <(sext_inreg (i32 GPRegs:$src1), i16),
+           (SEXTS GPRegs:$src1)>;
+
+
+let isAsCheapAsAMove=1, neverHasSideEffects=1 in {
+    def MOV: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src), "copy $src, $dst", [(set (i32 GPRegs:$dst) ,(i32 GPRegs:$src) )], IIC_ALU1>;
 }
+
 
 //def : Pat<(store (i32 GPRegs:$dst), (i32 ARegs:$iaddr)),STGA>;
 

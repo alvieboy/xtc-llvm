@@ -195,9 +195,9 @@ SDNode* XTCDAGToDAGISel::Select(SDNode *Node) {
 
 
         if (Node->hasOneUse())
-            return CurDAG->SelectNodeTo(Node, Opc, VT, imm, TFI);
+            return CurDAG->SelectNodeTo(Node, Opc, VT, TFI, imm);
 
-        return CurDAG->getMachineNode(Opc, dl, VT, imm, TFI);
+        return CurDAG->getMachineNode(Opc, dl, VT, TFI, imm);
 
     }
 

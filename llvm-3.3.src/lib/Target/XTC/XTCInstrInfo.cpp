@@ -43,7 +43,7 @@ static bool isZeroImm(const MachineOperand &op) {
 unsigned XTCInstrInfo::
 isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex) const {
 
-    if (MI->getOpcode() == XTC::LDW) {
+    if (MI->getOpcode() == XTC::LDWI) {
     if ((MI->getOperand(1).isFI()) && // is a stack slot
         (MI->getOperand(2).isImm()) &&  // the imm is zero
         (isZeroImm(MI->getOperand(2)))) {
@@ -86,11 +86,10 @@ copyPhysReg(MachineBasicBlock &MBB,
             MachineBasicBlock::iterator I, DebugLoc DL,
             unsigned DestReg, unsigned SrcReg,
             bool KillSrc) const {
-    //DEBUG(dbgs()<<"Copy from reg "<<SrcReg<<" to reg "<<DestReg<<"\n");
-    //llvm_unreachable("Cannot");
 
     llvm::BuildMI(MBB, I, DL, get(XTC::MOV), DestReg)
     .addReg(SrcReg, getKillRegState(KillSrc));
+
 }
 
 void XTCInstrInfo::

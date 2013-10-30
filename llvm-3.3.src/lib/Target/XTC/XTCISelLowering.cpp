@@ -1545,6 +1545,7 @@ static bool isIntS32Immediate(SDValue Op, int32_t &Imm) {
 bool XTCTargetLowering::SelectAddrRegReg(SDValue N, SDValue &Base, SDValue &Index, SelectionDAG &DAG) const {
 
     DEBUG(dbgs()<<"ALVIE "<<__PRETTY_FUNCTION__<<" called\n");
+    return false;
 
     if (N.getOpcode() == ISD::FrameIndex) {
         DEBUG(dbgs() << "Frame index in SelectAddrRegReg, promoting to RegImm");
@@ -1555,14 +1556,16 @@ bool XTCTargetLowering::SelectAddrRegReg(SDValue N, SDValue &Base, SDValue &Inde
         return false;  // direct calls.
 
     int32_t imm = 0;
+    DEBUG( dbgs() << "Check for ADD/OR\n");
     if (N.getOpcode() == ISD::ADD || N.getOpcode() == ISD::OR) {
+        DEBUG( dbgs() << "YES:Check for ADD/OR");
         if (isIntS32Immediate(N.getOperand(1), imm))
             return false;    // r+i
 
         if (N.getOperand(0).getOpcode() == ISD::TargetJumpTable ||
             N.getOperand(1).getOpcode() == ISD::TargetJumpTable)
             return false; // jump tables.
-
+        DEBUG( dbgs() << "Ok, we can do this with R+R...\n" );
         Base = N.getOperand(0);
         Index = N.getOperand(1);
         return true;
