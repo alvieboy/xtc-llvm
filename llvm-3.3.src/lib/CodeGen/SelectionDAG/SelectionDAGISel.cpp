@@ -1972,9 +1972,11 @@ CheckNodePredicate(const unsigned char *MatcherTable, unsigned &MatcherIndex,
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
 CheckOpcode(const unsigned char *MatcherTable, unsigned &MatcherIndex,
             SDNode *N) {
-  uint16_t Opc = MatcherTable[MatcherIndex++];
-  Opc |= (unsigned short)MatcherTable[MatcherIndex++] << 8;
-  return N->getOpcode() == Opc;
+    uint16_t Opc = MatcherTable[MatcherIndex++];
+    DEBUG( dbgs() << "Checking opcode, Opc is " << Opc << "\n");
+    Opc |= (unsigned short)MatcherTable[MatcherIndex++] << 8;
+    DEBUG( dbgs() << "2 - Checking opcode, Opc is " << Opc << " " << " getOpcode " << N->getOpcode() << "\n");
+    return N->getOpcode() == Opc;
 }
 
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
@@ -2262,6 +2264,7 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     DEBUG(dbgs()<<"Recorded nodes: "<<RecordedNodes.size()<<"\n");
     switch (Opcode) {
     case OPC_Scope: {
+        DEBUG(dbgs()<<"OPC_Scope\n");
       // Okay, the semantics of this operation are that we should push a scope
       // then evaluate the first child.  However, pushing a scope only to have
       // the first check fail (which then pops it) is inefficient.  If we can
@@ -2322,7 +2325,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     }
     case OPC_RecordNode: {
       // Remember this node, it may end up being an operand in the pattern.
-      SDNode *Parent = 0;
+        DEBUG(dbgs()<<"OPC_RecordNode\n");
+  SDNode *Parent = 0;
       if (NodeStack.size() > 1)
           Parent = NodeStack[NodeStack.size()-2].getNode();
       DEBUG(dbgs() << "Recording node \n"); N->dump();
@@ -2334,7 +2338,9 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     case OPC_RecordChild2: case OPC_RecordChild3:
     case OPC_RecordChild4: case OPC_RecordChild5:
     case OPC_RecordChild6: case OPC_RecordChild7: {
-      unsigned ChildNo = Opcode-OPC_RecordChild0;
+        unsigned ChildNo = Opcode-OPC_RecordChild0;
+        DEBUG(dbgs()<<"OPC_RecordChild\n");
+
       if (ChildNo >= N.getNumOperands())
         break;  // Match fails if out of range child #.
       DEBUG(dbgs() << "child Recording node\n"); N->getOperand(ChildNo)->dump();
@@ -2343,10 +2349,14 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       continue;
     }
     case OPC_RecordMemRef:
+        DEBUG(dbgs()<<"OPC_RecordMemRef\n");
+
       MatchedMemRefs.push_back(cast<MemSDNode>(N)->getMemOperand());
       continue;
 
     case OPC_CaptureGlueInput:
+        DEBUG(dbgs()<<"OPC_CaptureGlueInput\n");
+
       // If the current node has an input glue, capture it in InputGlue.
       if (N->getNumOperands() != 0 &&
           N->getOperand(N->getNumOperands()-1).getValueType() == MVT::Glue)
@@ -2354,6 +2364,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       continue;
 
     case OPC_MoveChild: {
+        DEBUG(dbgs()<<"OPC_MoveChild\n");
+
       unsigned ChildNo = MatcherTable[MatcherIndex++];
       if (ChildNo >= N.getNumOperands())
         break;  // Match fails if out of range child #.
@@ -2363,6 +2375,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     }
 
     case OPC_MoveParent:
+        DEBUG(dbgs()<<"OPC_MoveParent\n");
+
       // Pop the current node off the NodeStack.
       NodeStack.pop_back();
       assert(!NodeStack.empty() && "Node stack imbalance!");
@@ -2370,9 +2384,13 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       continue;
 
     case OPC_CheckSame:
+        DEBUG(dbgs()<<"OPC_CheckSame\n");
+
       if (!::CheckSame(MatcherTable, MatcherIndex, N, RecordedNodes)) break;
       continue;
     case OPC_CheckPatternPredicate:
+        DEBUG(dbgs()<<"OPC_CheckPatternPredicate\n");
+
       if (!::CheckPatternPredicate(MatcherTable, MatcherIndex, *this)) break;
       continue;
     case OPC_CheckPredicate:
@@ -2381,6 +2399,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
         break;
       continue;
     case OPC_CheckComplexPat: {
+        DEBUG(dbgs()<<"OPC_CheckComplexPat\n");
+
       unsigned CPNum = MatcherTable[MatcherIndex++];
       unsigned RecNo = MatcherTable[MatcherIndex++];
       assert(RecNo < RecordedNodes.size() && "Invalid CheckComplexPat");
@@ -2391,14 +2411,22 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       continue;
     }
     case OPC_CheckOpcode:
+        DEBUG(dbgs()<<"OPC_CheckOpcode\n");
+        N.dump();
+        DEBUG(dbgs()<<"Opcode: " << N.getNode()->getOpcode() << "\n");
       if (!::CheckOpcode(MatcherTable, MatcherIndex, N.getNode())) break;
       continue;
 
     case OPC_CheckType:
+        DEBUG(dbgs()<<"OPC_CheckType\n");
+
       if (!::CheckType(MatcherTable, MatcherIndex, N, TLI)) break;
       continue;
 
     case OPC_SwitchOpcode: {
+        DEBUG(dbgs()<<"OPC_SwitchOpcode\n");
+
+
       unsigned CurNodeOpcode = N.getOpcode();
       unsigned SwitchStart = MatcherIndex-1; (void)SwitchStart;
       unsigned CaseSize;
@@ -2431,6 +2459,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
 
 
     case OPC_SwitchType: {
+        DEBUG(dbgs()<<"OPC_SwitchType\n");
+
       MVT CurNodeVT = N.getValueType().getSimpleVT();
       unsigned SwitchStart = MatcherIndex-1; (void)SwitchStart;
       unsigned CaseSize;
@@ -2465,27 +2495,41 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     case OPC_CheckChild2Type: case OPC_CheckChild3Type:
     case OPC_CheckChild4Type: case OPC_CheckChild5Type:
     case OPC_CheckChild6Type: case OPC_CheckChild7Type:
+        DEBUG(dbgs()<<"OPC_CheckChildType\n");
+
       if (!::CheckChildType(MatcherTable, MatcherIndex, N, TLI,
                             Opcode-OPC_CheckChild0Type))
         break;
       continue;
     case OPC_CheckCondCode:
+        DEBUG(dbgs()<<"OPC_CheckCondCode\n");
+
       if (!::CheckCondCode(MatcherTable, MatcherIndex, N)) break;
       continue;
     case OPC_CheckValueType:
+        DEBUG(dbgs()<<"OPC_CheckValueType\n");
+
       if (!::CheckValueType(MatcherTable, MatcherIndex, N, TLI)) break;
       continue;
     case OPC_CheckInteger:
+        DEBUG(dbgs()<<"OPC_CheckInteger\n");
+
       if (!::CheckInteger(MatcherTable, MatcherIndex, N)) break;
       continue;
     case OPC_CheckAndImm:
+        DEBUG(dbgs()<<"OPC_CheckAndImm\n");
+
       if (!::CheckAndImm(MatcherTable, MatcherIndex, N, *this)) break;
       continue;
     case OPC_CheckOrImm:
+        DEBUG(dbgs()<<"OPC_CheckOrImm\n");
+
       if (!::CheckOrImm(MatcherTable, MatcherIndex, N, *this)) break;
       continue;
 
     case OPC_CheckFoldableChainNode: {
+        DEBUG(dbgs()<<"OPC_CheckFoldableChainNode\n");
+
       assert(NodeStack.size() != 1 && "No parent node");
       // Verify that all intermediate nodes between the root and this one have
       // a single use.
@@ -2509,6 +2553,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       continue;
     }
     case OPC_EmitInteger: {
+        DEBUG(dbgs()<<"OPC_EmitInteger\n");
+
       MVT::SimpleValueType VT =
         (MVT::SimpleValueType)MatcherTable[MatcherIndex++];
       int64_t Val = MatcherTable[MatcherIndex++];
@@ -2520,6 +2566,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       continue;
     }
     case OPC_EmitRegister: {
+        DEBUG(dbgs()<<"OPC_EmitRegister\n");
+
       MVT::SimpleValueType VT =
         (MVT::SimpleValueType)MatcherTable[MatcherIndex++];
       unsigned RegNo = MatcherTable[MatcherIndex++];
@@ -2529,6 +2577,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       continue;
     }
     case OPC_EmitRegister2: {
+        DEBUG(dbgs()<<"OPC_EmitRegister2\n");
+
       // For targets w/ more than 256 register names, the register enum
       // values are stored in two bytes in the matcher table (just like
       // opcodes).
@@ -2544,6 +2594,9 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     }
 
     case OPC_EmitConvertToTarget:  {
+        DEBUG(dbgs()<<"OPC_EmitConvertToTarget\n");
+
+
       // Convert from IMM/FPIMM to target version.
       unsigned RecNo = MatcherTable[MatcherIndex++];
       assert(RecNo < RecordedNodes.size() && "Invalid CheckSame");
@@ -2565,7 +2618,9 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
 
     case OPC_EmitMergeInputChains1_0:    // OPC_EmitMergeInputChains, 1, 0
     case OPC_EmitMergeInputChains1_1: {  // OPC_EmitMergeInputChains, 1, 1
-      // These are space-optimized forms of OPC_EmitMergeInputChains.
+        // These are space-optimized forms of OPC_EmitMergeInputChains.
+        DEBUG(dbgs()<<"OPC_EmitMergeInputChains_10_11\n");
+
       assert(InputChain.getNode() == 0 &&
              "EmitMergeInputChains should be the first chain producing node");
       assert(ChainNodesMatched.empty() &&
@@ -2594,6 +2649,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     }
 
     case OPC_EmitMergeInputChains: {
+        DEBUG(dbgs()<<"OPC_EmitMergeInputChains\n");
+
       assert(InputChain.getNode() == 0 &&
              "EmitMergeInputChains should be the first chain producing node");
       // This node gets a list of nodes we matched in the input that have
@@ -2637,6 +2694,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     }
 
     case OPC_EmitCopyToReg: {
+        DEBUG(dbgs()<<"OPC_EmitCopyToReg\n");
+
       unsigned RecNo = MatcherTable[MatcherIndex++];
       assert(RecNo < RecordedNodes.size() && "Invalid CheckSame");
       unsigned DestPhysReg = MatcherTable[MatcherIndex++];
@@ -2653,6 +2712,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     }
 
     case OPC_EmitNodeXForm: {
+        DEBUG(dbgs()<<"OPC_EmitNodeXForm\n");
+
       unsigned XFormNo = MatcherTable[MatcherIndex++];
       unsigned RecNo = MatcherTable[MatcherIndex++];
       assert(RecNo < RecordedNodes.size() && "Invalid CheckSame");
@@ -2665,6 +2726,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
 
     case OPC_EmitNode:
     case OPC_MorphNodeTo: {
+        DEBUG(dbgs()<<"OPC_EmitNode/MorphNodeTo\n");
+
       uint16_t TargetOpc = MatcherTable[MatcherIndex++];
       TargetOpc |= (unsigned short)MatcherTable[MatcherIndex++] << 8;
       unsigned EmitNodeInfo = MatcherTable[MatcherIndex++];
@@ -2835,6 +2898,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     }
 
     case OPC_MarkGlueResults: {
+        DEBUG(dbgs()<<"OPC_MarkGlueResults\n");
+
       unsigned NumNodes = MatcherTable[MatcherIndex++];
 
       // Read and remember all the glue-result nodes.
@@ -2850,6 +2915,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     }
 
     case OPC_CompleteMatch: {
+        DEBUG(dbgs()<<"OPC_CompleteMatch\n");
+
       // The match has been completed, and any new nodes (if any) have been
       // created.  Patch up references to the matched dag to use the newly
       // created nodes.

@@ -119,10 +119,13 @@ bool LiveRegMatrix::checkRegUnitInterference(LiveInterval &VirtReg,
   if (VirtReg.empty())
     return false;
   CoalescerPair CP(VirtReg.reg, PhysReg, *TRI);
-  for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units)
+  for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
+      DEBUG( dbgs() << "Iter for " << PhysReg << "\n");
     if (VirtReg.overlaps(LIS->getRegUnit(*Units), CP, *LIS->getSlotIndexes()))
       return true;
-  return false;
+  }
+    return false;
+
 }
 
 LiveIntervalUnion::Query &LiveRegMatrix::query(LiveInterval &VirtReg,
@@ -134,21 +137,30 @@ LiveIntervalUnion::Query &LiveRegMatrix::query(LiveInterval &VirtReg,
 
 LiveRegMatrix::InterferenceKind
 LiveRegMatrix::checkInterference(LiveInterval &VirtReg, unsigned PhysReg) {
+    DEBUG( dbgs() << "LiveRegMatrix 1 \n");
   if (VirtReg.empty())
     return IK_Free;
+    DEBUG( dbgs() << "LiveRegMatrix 2 \n");
 
   // Regmask interference is the fastest check.
   if (checkRegMaskInterference(VirtReg, PhysReg))
     return IK_RegMask;
 
+  DEBUG( dbgs() << "LiveRegMatrix 3 \n");
+
   // Check for fixed interference.
   if (checkRegUnitInterference(VirtReg, PhysReg))
     return IK_RegUnit;
 
+  DEBUG( dbgs() << "LiveRegMatrix 4 \n");
+
   // Check the matrix for virtual register interference.
   for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units)
     if (query(VirtReg, *Units).checkInterference())
-      return IK_VirtReg;
+        return IK_VirtReg;
+
+  DEBUG( dbgs() << "LiveRegMatrix 5 \n");
+
 
   return IK_Free;
 }

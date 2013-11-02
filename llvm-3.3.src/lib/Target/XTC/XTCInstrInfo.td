@@ -195,28 +195,16 @@ let isAsCheapAsAMove = 1, isReMaterializable=1 in {
 let mayLoad=1,canFoldAsLoad=1,isReMaterializable=1 in {
 
 
-    def LDW: XTCGENERIC<(outs GPRegs:$dst), (ins memrr:$addr),
-                  "ldw $addr, $dst",
-                  [(set i32:$dst, (load xaddr:$addr))], IIC_ALU1>;
-
     def LDWI: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
-                  "ldwi $addr, $dst",
+                  "ldwi ($addr), $dst",
                   [(set i32:$dst, (load iaddr:$addr))], IIC_ALU1>;
 
-    def LDB: XTCGENERIC<(outs GPRegs:$dst), (ins memrr:$addr),
-                  "ldb $addr, $dst",
-                  [(set i32:$dst, (zextloadi8 xaddr:$addr))], IIC_ALU1>;
-
     def LDBI: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
-                  "ldbi $addr, $dst",
+                  "ldbi ($addr), $dst",
                   [(set i32:$dst, (zextloadi8 iaddr:$addr))], IIC_ALU1>;
 
-    def LDS: XTCGENERIC<(outs GPRegs:$dst), (ins memrr:$addr),
-                  "lds $addr, $dst",
-                  [(set i32:$dst, (zextloadi16 xaddr:$addr))], IIC_ALU1>;
-
     def LDSI: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
-                  "ldsi $addr, $dst",
+                  "ldsi ($addr), $dst",
                   [(set i32:$dst, (zextloadi16 iaddr:$addr))], IIC_ALU1>;
 
 }
@@ -263,12 +251,12 @@ let isReturn=1, isTerminator=1, hasDelaySlot = 1 in {
 let Constraints = "$ptr = $ptr_wb" in {
 
     def STWPOSTI: XTCGENERIC<(outs GPRegs:$ptr_wb), (ins GPRegs:$val, GPRegs:$ptr, i32imm:$offset),
-            "stw+ $val, [$ptr] $offset ", [(set GPRegs:$ptr_wb,
+            "stw+ $val, ($ptr) $offset) ", [(set GPRegs:$ptr_wb,
                   (post_store (i32 GPRegs:$val), (i32 GPRegs:$ptr), imm:$offset))], IIC_ALU1>;
 
 
     def STWPREI: XTCGENERIC<(outs GPRegs:$ptr_wb), (ins GPRegs:$val, GPRegs:$ptr, i32imm:$offset),
-            "st+w $val, [$ptr] $offset ", [(set GPRegs:$ptr_wb,
+            "st+w $val, ($ptr) $offset ", [(set GPRegs:$ptr_wb,
                   (pre_store (i32 GPRegs:$val), (i32 GPRegs:$ptr), imm:$offset))], IIC_ALU1>;
 }
 
@@ -276,20 +264,14 @@ let Constraints = "$ptr = $ptr_wb" in {
 
 //def: Pat<(pre_store (i32 GPRegs:$src1), GPRegs:$src2, (i32 imm:$offset)), (POSTSTORE (i32 GPRegs:$src1), GPRegs:$src2, (i32 imm:$offset))>;
 
-def STR:  XTCGENERIC<(outs), (ins GPRegs:$val, memrr:$dst),
-    "stw $val, [$dst]", [(store (i32 GPRegs:$val) ,xaddr:$dst)], IIC_ALU1>;
-
-def STB:  XTCGENERIC<(outs), (ins GPRegs:$val, memrr:$dst),
-    "stb $val, [$dst]", [(truncstorei8 (i32 GPRegs:$val) ,xaddr:$dst)], IIC_ALU1>;
-
 def STBI:  XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
-    "stbi $val, [$dst]", [(truncstorei8 (i32 GPRegs:$val) ,iaddr:$dst)], IIC_ALU1>;
+    "stbi $val, ($dst)", [(truncstorei8 (i32 GPRegs:$val) ,iaddr:$dst)], IIC_ALU1>;
 
-def STS:  XTCGENERIC<(outs), (ins GPRegs:$val, memrr:$dst),
-    "sts $val, [$dst]", [(truncstorei16 (i32 GPRegs:$val) ,xaddr:$dst)], IIC_ALU1>;
+def STSI:  XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
+    "stsi $val, ($dst)", [(truncstorei16 (i32 GPRegs:$val) ,iaddr:$dst)], IIC_ALU1>;
 
 def STWI:   XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
-    "stwi $val, [$dst]", [(store (i32 GPRegs:$val), iaddr:$dst)], IIC_ALU1>;
+    "stwi $val, ($dst)", [(store (i32 GPRegs:$val), iaddr:$dst)], IIC_ALU1>;
 
 
 

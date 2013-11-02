@@ -436,13 +436,20 @@ LiveInterval *RAGreedy::dequeue() {
 unsigned RAGreedy::tryAssign(LiveInterval &VirtReg,
                              AllocationOrder &Order,
                              SmallVectorImpl<LiveInterval*> &NewVRegs) {
+    DEBUG(dbgs() << "try Assign\n" );
   Order.rewind();
   unsigned PhysReg;
-  while ((PhysReg = Order.next()))
-    if (!Matrix->checkInterference(VirtReg, PhysReg))
-      break;
+  while ((PhysReg = Order.next())) {
+
+      DEBUG(dbgs() << "Check reg "<<PhysReg<<"\n" );
+
+      if (!Matrix->checkInterference(VirtReg, PhysReg))
+          break;
+  }
+  DEBUG( dbgs() << "PhysReg "<<PhysReg << " hiint " << Order.isHint() );
+
   if (!PhysReg || Order.isHint())
-    return PhysReg;
+      return PhysReg;
 
   // PhysReg is available, but there may be a better choice.
 
@@ -457,7 +464,7 @@ unsigned RAGreedy::tryAssign(LiveInterval &VirtReg,
         return Hint;
       }
     }
-
+  DEBUG( dbgs() << "here 1 \n");
   // Try to evict interference from a cheaper alternative.
   unsigned Cost = TRI->getCostPerUse(PhysReg);
 
@@ -1784,8 +1791,9 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   NextCascade = 1;
   IntfCache.init(MF, Matrix->getLiveUnions(), Indexes, LIS, TRI);
   GlobalCand.resize(32);  // This will grow as needed.
-
+  DEBUG( dbgs() << "before allocatePhysRegs()\n");
   allocatePhysRegs();
   releaseMemory();
+  DEBUG( dbgs() << "after allocatePhysRegs()\n");
   return true;
 }

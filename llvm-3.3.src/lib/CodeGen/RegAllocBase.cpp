@@ -79,7 +79,7 @@ void RegAllocBase::seedLiveRegs() {
 // selectOrSplit implementation.
 void RegAllocBase::allocatePhysRegs() {
   seedLiveRegs();
-
+  DEBUG( dbgs() << "After seeding\n" );
   // Continue assigning vregs one at a time to available physical registers.
   while (LiveInterval *VirtReg = dequeue()) {
     assert(!VRM->hasPhys(VirtReg->reg) && "Register already assigned");
@@ -103,9 +103,11 @@ void RegAllocBase::allocatePhysRegs() {
     typedef SmallVector<LiveInterval*, 4> VirtRegVec;
     VirtRegVec SplitVRegs;
     unsigned AvailablePhysReg = selectOrSplit(*VirtReg, SplitVRegs);
+    DEBUG(dbgs() << "After select or spill\n");
 
     if (AvailablePhysReg == ~0u) {
-      // selectOrSplit failed to find a register!
+        // selectOrSplit failed to find a register!
+        DEBUG(dbgs()<<"Could not fing a register...\n");
       const char *Msg = "ran out of registers during register allocation";
       // Probably caused by an inline asm.
       MachineInstr *MI;
@@ -122,7 +124,7 @@ void RegAllocBase::allocatePhysRegs() {
                  RegClassInfo.getOrder(MRI->getRegClass(VirtReg->reg)).front());
       continue;
     }
-
+    DEBUG( dbgs() << "AvailablePhysReg is "<<AvailablePhysReg<<"\n");
     if (AvailablePhysReg)
       Matrix->assign(*VirtReg, AvailablePhysReg);
 

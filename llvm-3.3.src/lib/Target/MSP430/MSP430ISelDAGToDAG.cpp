@@ -401,14 +401,20 @@ SDNode *MSP430DAGToDAGISel::Select(SDNode *Node) {
   switch (Node->getOpcode()) {
   default: break;
   case ISD::FrameIndex: {
-    assert(Node->getValueType(0) == MVT::i16);
-    int FI = cast<FrameIndexSDNode>(Node)->getIndex();
-    SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i16);
-    if (Node->hasOneUse())
-      return CurDAG->SelectNodeTo(Node, MSP430::ADD16ri, MVT::i16,
-                                  TFI, CurDAG->getTargetConstant(0, MVT::i16));
-    return CurDAG->getMachineNode(MSP430::ADD16ri, dl, MVT::i16,
-                                  TFI, CurDAG->getTargetConstant(0, MVT::i16));
+
+      assert(Node->getValueType(0) == MVT::i16);
+
+      int FI = cast<FrameIndexSDNode>(Node)->getIndex();
+
+      SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i16);
+
+      if (Node->hasOneUse())
+
+          return CurDAG->SelectNodeTo(Node, MSP430::ADD16ri, MVT::i16,
+                                      TFI, CurDAG->getTargetConstant(0, MVT::i16));
+
+      return CurDAG->getMachineNode(MSP430::ADD16ri, dl, MVT::i16,
+                                    TFI, CurDAG->getTargetConstant(0, MVT::i16));
   }
   case ISD::LOAD:
     if (SDNode *ResNode = SelectIndexedLoad(Node))

@@ -150,6 +150,9 @@ SelectAddrRegImm(SDValue N, SDValue &Base, SDValue &Disp) {
   if (SelectAddrRegReg(N, Base, Disp))
     return false;
 
+  DEBUG(dbgs() << "Checking AddrRegImm\n");
+
+
   if (N.getOpcode() == ISD::ADD || N.getOpcode() == ISD::OR) {
     int32_t imm = 0;
     if (isIntS32Immediate(N.getOperand(1), imm)) {
@@ -159,6 +162,7 @@ SelectAddrRegImm(SDValue N, SDValue &Base, SDValue &Disp) {
       } else {
         Base = N.getOperand(0);
       }
+      DEBUG( dbgs() << "return R + i\n" );
       return true; // [r+i]
     }
   } else if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(N)) {
@@ -174,6 +178,7 @@ SelectAddrRegImm(SDValue N, SDValue &Base, SDValue &Disp) {
     Base = CurDAG->getTargetFrameIndex(FI->getIndex(), N.getValueType());
   else
     Base = N;
+  DEBUG( dbgs() << "return R + 0 ...\n" );
   return true;      // [r+0]
 }
 

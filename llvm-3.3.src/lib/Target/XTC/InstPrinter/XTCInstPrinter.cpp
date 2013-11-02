@@ -67,7 +67,7 @@ void XTCInstPrinter::printUnsignedImm(const MCInst *MI, int OpNo,
 void XTCInstPrinter::printMemOperand(const MCInst *MI, int OpNo,
                                         raw_ostream &O, const char *Modifier) {
   printOperand(MI, OpNo, O, NULL);
-  O << ", ";
+  O << " + ";
   printOperand(MI, OpNo+1, O, NULL);
 }
 
