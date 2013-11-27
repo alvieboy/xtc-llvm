@@ -504,6 +504,17 @@ protected:
   virtual Tool *buildLinker() const;
 };
 
+class LLVM_LIBRARY_VISIBILITY XTC : public Generic_ELF {
+public:
+  XTC(const Driver &D, const llvm::Triple& Triple, const ArgList &Args);
+
+  virtual bool IsMathErrnoDefault() const { return false; }
+
+protected:
+  virtual Tool *buildAssembler() const;
+  virtual Tool *buildLinker() const;
+};
+
 class LLVM_LIBRARY_VISIBILITY Linux : public Generic_ELF {
 public:
   Linux(const Driver &D, const llvm::Triple& Triple, const ArgList &Args);

@@ -2629,3 +2629,27 @@ Tool *DragonFly::buildAssembler() const {
 Tool *DragonFly::buildLinker() const {
   return new tools::dragonfly::Link(*this);
 }
+
+/// XTC - XTC tool chain which can call as(1) and ld(1) directly.
+
+XTC::XTC(const Driver &D, const llvm::Triple& Triple, const ArgList &Args)
+  : Generic_ELF(D, Triple, Args) {
+
+  // Path mangling to find libexec
+  getProgramPaths().push_back(getDriver().getInstalledDir());
+  if (getDriver().getInstalledDir() != getDriver().Dir)
+    getProgramPaths().push_back(getDriver().Dir);
+
+  getFilePaths().push_back(getDriver().Dir + "/../lib");
+  getFilePaths().push_back("/usr/lib");
+}
+
+Tool *XTC::buildAssembler() const {
+  return new tools::dragonfly::Assemble(*this);
+}
+
+Tool *XTC::buildLinker() const {
+  return new tools::dragonfly::Link(*this);
+}
+
+
