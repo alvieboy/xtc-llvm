@@ -79,12 +79,13 @@ SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
   // TODO: Could also support "weak" symbols as well with ".gnu.linkonce.s.*"
   // sections?
 
-  // Handle Small Section classification here.
+    // Handle Small Section classification here.
+    /*
   if (Kind.isBSS() && IsGlobalInSmallSection(GV, TM, Kind))
     return SmallBSSSection;
   if (Kind.isDataNoRel() && IsGlobalInSmallSection(GV, TM, Kind))
     return SmallDataSection;
-
+     */
   // Otherwise, we work the same as ELF.
   return TargetLoweringObjectFileELF::SelectSectionForGlobal(GV, Kind, Mang,TM);
 }

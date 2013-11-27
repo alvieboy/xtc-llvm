@@ -235,7 +235,9 @@ XTCTargetLowering::XTCTargetLowering(XTCTargetMachine &TM)
   // XTC Custom Operations
   setOperationAction(ISD::GlobalAddress,      MVT::i32,   Custom);
   setOperationAction(ISD::GlobalTLSAddress,   MVT::i32,   Custom);
-  setOperationAction(ISD::JumpTable,          MVT::i32,   Custom);
+
+  setOperationAction(ISD::JumpTable,          MVT::i32,   Expand);
+
   setOperationAction(ISD::ConstantPool,       MVT::i32,   Custom);
 
   // Variable Argument support
@@ -277,8 +279,9 @@ XTCTargetLowering::XTCTargetLowering(XTCTargetMachine &TM)
   setTruncStoreAction(MVT::f64, MVT::f32, Expand);
 
   setMinFunctionAlignment(2);
+  setSupportJumpTables(false);
 
-  setStackPointerRegisterToSaveRestore(XTC::r1);
+  setStackPointerRegisterToSaveRestore(XTC::r15);
   computeRegisterProperties();
 }
 
@@ -407,7 +410,7 @@ SDValue XTCTargetLowering::LowerBRCOND(SDValue Op,
     SDValue Dest  = Op.getOperand(2);
     DebugLoc dl = Op.getDebugLoc();
     SDValue CC;
-    DEBUG(dbgs()<<"Lowering BRCOND\n");
+
     if (Cond.getOpcode() == ISD::SETCC) {
         SDValue NewCond = LowerSETCC(Cond,DAG);
         if (NewCond.getNode())
@@ -420,8 +423,6 @@ SDValue XTCTargetLowering::LowerBRCOND(SDValue Op,
 
     return DAG.getNode(XTCISD::BRCOND, dl, Op.getValueType(),
                        Chain, Dest, CC, Cond);
-
-    llvm_unreachable("No lower BRCOND");
 }
 
 SDValue XTCTargetLowering::LowerBR_CC(SDValue Op,
@@ -454,8 +455,8 @@ SDValue XTCTargetLowering::LowerOperation(SDValue Op,
     {
     case ISD::ConstantPool:       return LowerConstantPool(Op, DAG);
     case ISD::GlobalAddress:      return LowerGlobalAddress(Op, DAG);
-    case ISD::GlobalTLSAddress:   return LowerGlobalTLSAddress(Op, DAG);
-    case ISD::JumpTable:          return LowerJumpTable(Op, DAG);
+    //case ISD::GlobalTLSAddress:   return LowerGlobalTLSAddress(Op, DAG);
+    //case ISD::JumpTable:          return LowerJumpTable(Op, DAG);
     case ISD::SELECT_CC:          return LowerSELECT_CC(Op, DAG);
     //case ISD::SELECT:             return LowerSELECT(Op, DAG);
     case ISD::VASTART:            return LowerVASTART(Op, DAG);
@@ -1606,8 +1607,10 @@ bool XTCTargetLowering::SelectAddrRegImm(SDValue N, SDValue &Base, SDValue &Disp
   Disp = DAG.getTargetConstant(0, getPointerTy());
   if (FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(N))
     Base = DAG.getTargetFrameIndex(FI->getIndex(), N.getValueType());
-  else
-    Base = N;
+  else {
+      //Disp = N;    // NOTA: isto deve ser o verdadeiro offset...
+      Base = N;
+  }
   return true;      // [r+0]
 }
 

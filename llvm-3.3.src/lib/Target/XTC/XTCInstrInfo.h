@@ -148,6 +148,7 @@ namespace XTC {
     default: return false;
 
     case XTC::BRI:
+    case XTC::BRR:
       return true;
     }
   }

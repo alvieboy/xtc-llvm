@@ -62,6 +62,8 @@ def XTCcmp : SDNode<"XTCISD::CMP", SDT_XTCCmp, [SDNPOutGlue]>;
 def XTCcallseq_start : SDNode<"ISD::CALLSEQ_START", SDT_XTCCallSeqStart, [SDNPHasChain, SDNPOutGlue]>;
 
 def XTCcallseq_end   : SDNode<"ISD::CALLSEQ_END", SDT_XTCCallSeqEnd, [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
+def XTCbrcond    : SDNode<"XTCISD::BRCOND",
+    SDT_XTCBRCOND, [SDNPHasChain]>;
 
 //===----------------------------------------------------------------------===//
 // XTC Instruction Predicate Definitions.
@@ -109,7 +111,7 @@ def memrr : Operand<iPTR> {
 
 def memri : Operand<iPTR> {
   let PrintMethod = "printMemOperand";
-  let MIOperandInfo = (ops iPTR:$reg, imm);
+  let MIOperandInfo = (ops GPRegs:$reg, imm);
   let ParserMatchClass = XTCMemAsmOperand;
 }
 
@@ -144,6 +146,13 @@ let Constraints="$dst = $src1" in  {
                [(set GPRegs:$dst, (OpNode GPRegs:$src1, GPRegs:$src2))], itin>;
 }
 
+let Constraints="$dst = $src1" in  {
+    class ArithFG<bits<3> aluop, string instr_asm, SDNode OpNode, InstrItinClass itin> :
+            XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src1, GPRegs:$src2),
+             !strconcat(instr_asm, "   $dst, $src2"),
+               [(set GPRegs:$dst, (OpNode GPRegs:$src1, GPRegs:$src2)), (implicit FLAGS)], itin>;
+}
+
 
 let Defs = [r15], Uses = [r15] in {
 def ADJCALLSTACKDOWN : XTCPseudo<(outs), (ins i32imm:$amt),
@@ -154,19 +163,24 @@ def ADJCALLSTACKUP : XTCPseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
                             [(XTCcallseq_end timm:$amt1, timm:$amt2)]>;
 }
 
+//def SDT_XTCCall    : SDTypeProfile<0, -1, [SDTCisVT<0, i32>]>;
 def SDT_XTCCall    : SDTypeProfile<0, -1, [SDTCisVT<0, i32>]>;
+
 def call          : SDNode<"XTCISD::CALL", SDT_XTCCall,
                            [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
                             SDNPVariadic]>;
 
 let isCall=1, hasDelaySlot=1 in {
 
-    def CALL: XTCGENERIC<(outs), (ins memri:$src, variable_ops),
+/*    def CALL: XTCGENERIC<(outs), (ins memri:$src, variable_ops),
         "call $src", [ (call iaddr:$src)], IIC_ALU1>;
-
-    def CALLR: XTCGENERIC<(outs), (ins memrr:$src, variable_ops),
+        */
+    def CALL: XTCGENERIC<(outs), (ins calltarget:$src, variable_ops),
+        "call $src, r0", [ (call i32:$src)], IIC_ALU1>;
+    
+    /*def CALLR: XTCGENERIC<(outs), (ins memrr:$src, variable_ops),
         "call $src", [ (call xaddr:$src)], IIC_ALU1>;
-
+    */
 }
 
 
@@ -215,8 +229,6 @@ def : Pat<(i32 (extloadi16 iaddr:$src)), (LDSI iaddr:$src)>;
 
 def NOP: NOP<0, "nop", IIC_ALU1>;
 
-def XTCbrcond    : SDNode<"XTCISD::BRCOND",
-    SDT_XTCBRCOND, [SDNPHasChain]>;
 
 
 
@@ -232,16 +244,32 @@ let Defs = [FLAGS] in {
 
     def CMP: XTCGENERIC<(outs), (ins GPRegs:$a, GPRegs:$b), "cmp $a, $b", [(XTCcmp i32:$a, i32:$b),(implicit FLAGS)], IIC_ALU1>;
 }
-let isCommutable=1 in {
+/*
+let Constraints="$a = $b" in {
+    def NOT: XTCGENERIC<(outs GPRegs:$a),(ins GPRegs:$b), "not $a", [(set (i32 GPRegs:$a), (not (i32 GPRegs:$b)))],IIC_ALU1>;
+}
+  */
+//let isCommutable=1 in {
+let Defs = [FLAGS] in {
     defm ADD:  Arith<0x0, "add ",  add,  IIC_ALU1>;
     defm AND:  Arith<0x2, "and ",  and,  IIC_ALU1>;
     defm OR:   Arith<0x3, "or ",   or,   IIC_ALU1>;
     defm SUB:  Arith<0x3, "sub ",  sub,  IIC_ALU1>;
+}
     defm SHL:  Arith<0x3, "shl ",  shl,  IIC_ALU1>;
     defm SRL:  Arith<0x3, "srl ",  srl,  IIC_ALU1>;
+    defm SRA:  Arith<0x3, "sra ",  sra,  IIC_ALU1>;
     defm XOR:  Arith<0x3, "xor ",  xor,  IIC_ALU1>;
+
+let Defs = [FLAGS] in {
+    defm ADDC:  Arith<0x0, "add ",  addc,  IIC_ALU1>;
+    defm SUBC:  Arith<0x0, "sub ",  subc,  IIC_ALU1>;
 }
 
+let Uses = [FLAGS] in {
+    defm ADDE:  Arith<0x0, "addc ",  adde,  IIC_ALU1>;
+    defm SUBE:  Arith<0x0, "subb ",  sube,  IIC_ALU1>;
+}
 
 let isReturn=1, isTerminator=1, hasDelaySlot = 1 in {
     def RET:    XTCGENERIC<(outs), (ins), "RET", [(XTCRet r1)], IIC_ALU1>;
@@ -307,12 +335,13 @@ let mayLoad=1 in {
       */
 
 
-
+let Constraints="$src = $dst" in {
     def SEXTB: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src),
-    "sextb $src, $dst", [], IIC_ALU1>;
+    "sextb $src", [], IIC_ALU1>;
 
     def SEXTS: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src),
-    "sexts $src, $dst", [], IIC_ALU1>;
+    "sexts $src", [], IIC_ALU1>;
+}
 
 def : Pat <(sext_inreg (i32 GPRegs:$src1), i8),
            (SEXTB GPRegs:$src1)>;
@@ -321,7 +350,7 @@ def : Pat <(sext_inreg (i32 GPRegs:$src1), i16),
            (SEXTS GPRegs:$src1)>;
 
 
-let isAsCheapAsAMove=1, neverHasSideEffects=1 in {
+let isAsCheapAsAMove=1 in {
     def MOV: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src), "copy $src, $dst", [(set (i32 GPRegs:$dst) ,(i32 GPRegs:$src) )], IIC_ALU1>;
 }
 
@@ -354,18 +383,25 @@ let isBranch = 1, isTerminator = 1, hasCtrlDep = 1,
   def BRAID  :  BranchI<"braid  ", XTC_COND_C>;
   }                            */
 
-let Uses = [FLAGS], isBranch = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1, hasCtrlDep = 1  in {
+let Uses = [FLAGS], isBranch = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1, hasCtrlDep = 1 , isIndirectBranch = 1 in {
 
 def BCOND: XTCGENERIC<(outs), (ins brtarget:$dst, cc:$cc),
     "bri$cc $dst",
     [(XTCbrcc bb:$dst, imm:$cc)], IIC_ALU1>;
+
 }
 
-let isBranch = 1, isTerminator = 1, isBarrier = 1, hasDelaySlot = 1 in {
+let isBranch = 1, isTerminator = 1, isBarrier = 1, hasDelaySlot = 1, isIndirectBranch = 1 in {
 
     def BRI: XTCGENERIC<(outs), (ins brtarget:$dst),
         "bri $dst",
         [(br bb:$dst)], IIC_ALU1>;
+
+}
+let isBranch = 1, isTerminator = 1, isBarrier = 1, hasDelaySlot = 1 in {
+    def BRR: XTCGENERIC<(outs), (ins GPRegs:$dst),
+        "brr $dst",
+        [], IIC_ALU1>;
 }
 
              /*
@@ -392,7 +428,7 @@ def : Pat<(XTCWrapper tglobaladdr:$in), (IM tglobaladdr:$in)>;
 def : Pat<(XTCWrapper tjumptable:$in),  (IM tjumptable:$in)>;
 def : Pat<(XTCWrapper tconstpool:$in),  (IM tconstpool:$in)>;
 
-def : Pat<(call tglobaladdr:$dst),      (IM tglobaladdr:$dst)>;
+//def : Pat<(call tglobaladdr:$dst),      (IM tglobaladdr:$dst)>;
 
 //def : Pat<(call texternalsym:$dst),     (CALL texternalsym:$dst)>;
 
@@ -412,7 +448,7 @@ def : Pat<(brcond (setcc (i32 GPRegs:$L), (i32 0), SETLE), bb:$T),
 */
 
 def : Pat<(br bb:$T), (BRI bb:$T)>;
-//def : Pat<(brind GPRegs:$T), (BRAD GPRegs:$T)>;
+def : Pat<(brind GPRegs:$T), (BRR GPRegs:$T)>;
 
 /*
 def : Pat<(brcond (setcc (i32 GPRegs:$L), (i32 0), SETUGT), bb:$T),
@@ -446,22 +482,6 @@ def : Pat<(select (setne GPRegs:$lhs, 0), GPRegs:$T, GPRegs:$F),
 
 def : Pat<(select (seteq GPRegs:$lhs, 0), GPRegs:$T, GPRegs:$F),
         (SELECT_CC GPRegs:$lhs, GPRegs:$F, GPRegs:$T)>;
-                            /*
-def : Pat<(select (setle GPRegs:$lhs, GPRegs:$rhs), GPRegs:$T, GPRegs:$F),
-          (SELECT_CC (LSS_3r GPRegs:$rhs, GPRegs:$lhs), GPRegs:$F, GPRegs:$T)>;
-def : Pat<(select (setule GPRegs:$lhs, GPRegs:$rhs), GPRegs:$T, GPRegs:$F),
-          (SELECT_CC (LSU_3r GPRegs:$rhs, GPRegs:$lhs), GPRegs:$F, GPRegs:$T)>;
-def : Pat<(select (setge GPRegs:$lhs, GPRegs:$rhs), GPRegs:$T, GPRegs:$F),
-          (SELECT_CC (LSS_3r GPRegs:$lhs, GPRegs:$rhs), GPRegs:$F, GPRegs:$T)>;
-def : Pat<(select (setuge GPRegs:$lhs, GPRegs:$rhs), GPRegs:$T, GPRegs:$F),
-          (SELECT_CC (LSU_3r GPRegs:$lhs, GPRegs:$rhs), GPRegs:$F, GPRegs:$T)>;
-def : Pat<(select (setne GPRegs:$lhs, GPRegs:$rhs), GPRegs:$T, GPRegs:$F),
-          (SELECT_CC (EQ_3r GPRegs:$lhs, GPRegs:$rhs), GPRegs:$F, GPRegs:$T)>;
-def : Pat<(select (setne GPRegs:$lhs, immUs:$rhs), GPRegs:$T, GPRegs:$F),
-          (SELECT_CC (EQ_2rus GPRegs:$lhs, immUs:$rhs), GPRegs:$F, GPRegs:$T)>;
-                              */
-
-
 
 /*
 def : Pat<(setcc (i32 GPRegs:$L), (i32 0), SETEQ),

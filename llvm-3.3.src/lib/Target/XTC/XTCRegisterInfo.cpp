@@ -79,6 +79,7 @@ getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
   Reserved.set(XTC::r0);
   Reserved.set(XTC::r1);
+  Reserved.set(XTC::r13);
 
   if (TFI->hasFP(MF))
       Reserved.set(XTC::r14);

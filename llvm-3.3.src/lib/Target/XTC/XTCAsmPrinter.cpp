@@ -167,8 +167,8 @@ void XTCAsmPrinter::emitFrameDirective() {
 }
 
 void XTCAsmPrinter::EmitFunctionEntryLabel() {
-  if (OutStreamer.hasRawTextSupport())
-    OutStreamer.EmitRawText("\t.ent\t" + Twine(CurrentFnSym->getName()));
+//  if (OutStreamer.hasRawTextSupport())
+//    OutStreamer.EmitRawText("\t.ent\t" + Twine(CurrentFnSym->getName()));
   AsmPrinter::EmitFunctionEntryLabel();
 }
 
@@ -181,8 +181,8 @@ void XTCAsmPrinter::EmitFunctionBodyStart() {
 }
 
 void XTCAsmPrinter::EmitFunctionBodyEnd() {
-  if (OutStreamer.hasRawTextSupport())
-    OutStreamer.EmitRawText("\t.end\t" + Twine(CurrentFnSym->getName()));
+//  if (OutStreamer.hasRawTextSupport())
+//    OutStreamer.EmitRawText("\t.end\t" + Twine(CurrentFnSym->getName()));
 }
 
 //===----------------------------------------------------------------------===//
@@ -282,6 +282,9 @@ void XTCAsmPrinter::printFSLImm(const MachineInstr *MI, int opNum,
 void XTCAsmPrinter::
 printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
                 const char *Modifier) {
+
+    //assert( MI->getOperand(opNum+1).isImm() );
+      llvm_unreachable("Hmm");
   printOperand(MI, opNum, O);
   O << "+";
   printOperand(MI, opNum+1, O);
@@ -330,6 +333,5 @@ void XTCAsmPrinter::printCCOperand(const MachineInstr *MI, int opNum,
 
 // Force static initialization.
 extern "C" void LLVMInitializeXTCAsmPrinter() {
-    fprintf(stderr,"Initialize new asm printer\n");
   RegisterAsmPrinter<XTCAsmPrinter> X(TheXTCTarget);
 }

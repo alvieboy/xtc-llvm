@@ -19,8 +19,9 @@ void XTCMCAsmInfo::anchor() { }
 XTCMCAsmInfo::XTCMCAsmInfo() {
   IsLittleEndian              = false;
   StackGrowsUp                = false;
-  SupportsDebugInformation    = true;
+  SupportsDebugInformation    = false;
   AlignmentIsInBytes          = false;
   PrivateGlobalPrefix         = "$";
   GPRel32Directive            = "\t.gpword\t";
+  UsesELFSectionDirectiveForBSS = true;
 }
