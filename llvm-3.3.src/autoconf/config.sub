@@ -154,7 +154,7 @@ case $os in
 	-convergent* | -ncr* | -news | -32* | -3600* | -3100* | -hitachi* |\
 	-c[123]* | -convex* | -sun | -crds | -omron* | -dg | -ultra | -tti* | \
 	-harris | -dolphin | -highlevel | -gould | -cbm | -ns | -masscomp | \
-	-apple | -axis | -knuth | -cray | -microblaze)
+	-apple | -axis | -knuth | -cray | -microblaze | -xtc)
 		os=
 		basic_machine=$1
 		;;
@@ -264,7 +264,7 @@ case $basic_machine in
 	| le32 | le64 \
 	| lm32 \
 	| m32c | m32r | m32rle | m68000 | m68k | m88k \
-	| maxq | mb | microblaze | mcore | mep | metag \
+	| maxq | mb | microblaze | xtc | mcore | mep | metag \
 	| mips | mipsbe | mipseb | mipsel | mipsle \
 	| mips16 \
 	| mips64 | mips64el \
@@ -425,6 +425,7 @@ case $basic_machine in
 	| x86-* | x86_64-* | xc16x-* | xps100-* \
 	| xstormy16-* | xtensa*-* \
 	| ymp-* \
+        | xtc-* \
 	| z8k-* | z80-*)
 		;;
 	# Recognize the basic CPU types without company name, with glob match.
@@ -780,6 +781,9 @@ case $basic_machine in
 		;;
 	microblaze)
 		basic_machine=microblaze-xilinx
+		;;
+	xtc)
+		basic_machine=xtc-unknown
 		;;
 	mingw32)
 		basic_machine=i386-pc
