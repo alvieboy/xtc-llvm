@@ -59,6 +59,11 @@
 
 #endif /* OpenBSD and Bitrig. */
 
+#if defined(__XTC__)
+#define _YUGA_LITTLE_ENDIAN 0
+#define _YUGA_BIG_ENDIAN    1
+#endif
+
 /* .. */
 
 /* Mac OSX has __BIG_ENDIAN__ or __LITTLE_ENDIAN__ automatically set by the compiler (at least with GCC) */
