@@ -169,9 +169,9 @@ XTCTargetLowering::XTCTargetLowering(XTCTargetMachine &TM)
   setOperationAction(ISD::UDIVREM, MVT::i32, Expand);
 
   // If the processor doesn't support multiply then expand it
-  if (!Subtarget->hasMul()) {
-    setOperationAction(ISD::MUL, MVT::i32, Expand);
-  }
+  //if (!Subtarget->hasMul()) {
+  //  setOperationAction(ISD::MUL, MVT::i32, Expand);
+  //}
 
   // If the processor doesn't support 64-bit multiply then expand
   //if (!Subtarget->hasMul() || !Subtarget->hasMul64()) {
