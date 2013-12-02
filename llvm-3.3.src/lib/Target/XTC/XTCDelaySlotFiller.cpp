@@ -226,7 +226,7 @@ findDelayInstr(MachineBasicBlock &MBB,MachineBasicBlock::iterator slot) {
 
     //unsigned opc = I->getOpcode();
     //bool isConditional = (opc == XTCISD::BCOND);
-
+#if 0
     while (true) {
         if (I == MBB.begin())
             break;
@@ -242,7 +242,7 @@ findDelayInstr(MachineBasicBlock &MBB,MachineBasicBlock::iterator slot) {
          */
         return I;
     }
-
+#endif
     return MBB.end();
 }
 
