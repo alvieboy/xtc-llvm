@@ -142,14 +142,14 @@ def xaddr : ComplexPattern<i32, 2, "SelectAddrRegReg", [], []>;
 let Constraints="$dst = $src1" in  {
     class ArithG<bits<3> aluop, string instr_asm, SDNode OpNode, InstrItinClass itin> :
             XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src1, GPRegs:$src2),
-             !strconcat(instr_asm, "   $dst, $src2"),
+             !strconcat(instr_asm, "   $src2, $dst"),
                [(set GPRegs:$dst, (OpNode GPRegs:$src1, GPRegs:$src2))], itin>;
 }
 
 let Constraints="$dst = $src1" in  {
     class ArithFG<bits<3> aluop, string instr_asm, SDNode OpNode, InstrItinClass itin> :
             XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src1, GPRegs:$src2),
-             !strconcat(instr_asm, "   $dst, $src2"),
+             !strconcat(instr_asm, "   $src2, $dst"),
                [(set GPRegs:$dst, (OpNode GPRegs:$src1, GPRegs:$src2)), (implicit FLAGS)], itin>;
 }
 
@@ -269,6 +269,10 @@ let Defs = [FLAGS] in {
 let Uses = [FLAGS] in {
     defm ADDE:  Arith<0x0, "addc ",  adde,  IIC_ALU1>;
     defm SUBE:  Arith<0x0, "subb ",  sube,  IIC_ALU1>;
+}
+
+let isCommutable = 1, Defs=[Y] in {
+    defm MUL    : Arith<0x0, "mul    ", mul,   IIC_ALU1>;
 }
 
 let isReturn=1, isTerminator=1, hasDelaySlot = 1 in {
