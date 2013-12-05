@@ -464,6 +464,8 @@ SDValue XTCTargetLowering::LowerOperation(SDValue Op,
      case ISD::ADD:
      case ISD::SUB:                return LowerArith(Op, DAG);
      */
+//    case ISD::RETURNADDR:    return LowerRETURNADDR(Op, DAG);
+
     case ISD::BRCOND:             return LowerBRCOND(Op, DAG);
     case ISD::BR_CC:             return LowerBR_CC(Op, DAG);
     case ISD::SETCC:              return LowerSETCC(Op, DAG);
@@ -1338,14 +1340,6 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
   SDValue Flag;
   SmallVector<SDValue, 4> RetOps(1, Chain);
 
-  // If this function is using the interrupt_handler calling convention
-  // then use "rtid r14, 0" otherwise use "rtsd r15, 8"
-#if 0
-  unsigned Ret = (CallConv == CallingConv::MBLAZE_INTR) ? XTCISD::IRet
-                                                        : XTCISD::Ret;
-  unsigned Reg = (CallConv == CallingConv::MBLAZE_INTR) ? XTC::R14
-      : XTC::R15;
-#endif
   unsigned Reg = XTC::r1;
   unsigned Ret = XTCISD::Ret;
 
@@ -1375,6 +1369,15 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
 
   return DAG.getNode(Ret, dl, MVT::Other, &RetOps[0], RetOps.size());
 }
+#if 0
+SDValue XTCTargetLowering::
+LowerRETURNADDR(SDValue Chain, SelectionDAG &DAG) const {
+    MachineFunction &MF = DAG.getMachineFunction();
+
+    MF.addLiveIn(XTC::BR, getRegClassFor(MVT::i32));
+    return DAG.getCopyFromReg(DAG.getEntryNode(), dl, Reg, VT)
+}
+#endif
 
 //===----------------------------------------------------------------------===//
 //                           XTC Inline Assembly Support

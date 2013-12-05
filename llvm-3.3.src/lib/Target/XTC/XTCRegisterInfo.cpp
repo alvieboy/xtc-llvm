@@ -65,7 +65,7 @@ const uint16_t* XTCRegisterInfo::
 getCalleeSavedRegs(const MachineFunction *MF) const {
   // XTC callee-save register range is R20 - R31
   static const uint16_t CalleeSavedRegs[] = {
-      XTC::r4, XTC::r5, XTC::r6,
+      XTC::BR, XTC::r4, XTC::r5, XTC::r6,
       0
   };
 

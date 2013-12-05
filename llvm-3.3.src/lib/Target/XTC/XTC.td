@@ -38,7 +38,7 @@ def FeatureMul         : SubtargetFeature<"mul", "HasMul", "true",
 // XTC processors supported.
 //===----------------------------------------------------------------------===//
 
-def : Processor<"xtc", XTCPipe5Itineraries, []>;
+def : ProcessorModel<"xtc", XTC3Model, [FeatureMul]>;
 
 //===----------------------------------------------------------------------===//
 // Instruction Descriptions

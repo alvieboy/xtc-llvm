@@ -170,13 +170,13 @@ def call          : SDNode<"XTCISD::CALL", SDT_XTCCall,
                            [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
                             SDNPVariadic]>;
 
-let isCall=1, hasDelaySlot=1 in {
+let isCall=1, hasDelaySlot=1, Defs = [BR] in {
 
 /*    def CALL: XTCGENERIC<(outs), (ins memri:$src, variable_ops),
         "call $src", [ (call iaddr:$src)], IIC_ALU1>;
         */
     def CALL: XTCGENERIC<(outs), (ins calltarget:$src, variable_ops),
-        "call $src, r0", [ (call i32:$src)], IIC_ALU1>;
+        "call $src, r0", [ (call i32:$src)], IIC_ALU2>;
     
     /*def CALLR: XTCGENERIC<(outs), (ins memrr:$src, variable_ops),
         "call $src", [ (call xaddr:$src)], IIC_ALU1>;
@@ -203,28 +203,31 @@ let neverHasSideEffects = 1 in  {
 let isAsCheapAsAMove = 1, isReMaterializable=1 in {
 
     def IM: XTCGENERIC<(outs GPRegs:$a), (ins i32imm:$src),
-       "limr $src, $a", [(set (i32 GPRegs:$a) , imm:$src)], IIC_ALU1>;
+       "limr $src, $a", [(set (i32 GPRegs:$a) , imm:$src)], IIC_ALU2>;
 }
 
 let mayLoad=1,canFoldAsLoad=1,isReMaterializable=1 in {
 
 
-    def LDWI: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
-                  "ldwi ($addr), $dst",
-                  [(set i32:$dst, (load iaddr:$addr))], IIC_ALU1>;
+    def LDW: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
+                  "ldw ($addr), $dst",
+                  [(set i32:$dst, (load iaddr:$addr))], IIC_ALU2MEM>;
 
-    def LDBI: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
-                  "ldbi ($addr), $dst",
-                  [(set i32:$dst, (zextloadi8 iaddr:$addr))], IIC_ALU1>;
+    def LDSPR: XTCGENERIC<(outs SPRegs:$dst), (ins memri:$addr),
+                  "ldspr ($addr), $dst",
+                  [(set i32:$dst, (load iaddr:$addr))], IIC_ALU2MEM>;
 
-    def LDSI: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
-                  "ldsi ($addr), $dst",
-                  [(set i32:$dst, (zextloadi16 iaddr:$addr))], IIC_ALU1>;
+    def LDB: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
+                  "ldb ($addr), $dst",
+                  [(set i32:$dst, (zextloadi8 iaddr:$addr))], IIC_ALU2MEM>;
 
+    def LDS: XTCGENERIC<(outs GPRegs:$dst), (ins memri:$addr),
+                  "lds ($addr), $dst",
+                  [(set i32:$dst, (zextloadi16 iaddr:$addr))], IIC_ALU2MEM>;
 }
 
-def : Pat<(i32 (extloadi8 iaddr:$src)), (LDBI iaddr:$src)>;
-def : Pat<(i32 (extloadi16 iaddr:$src)), (LDSI iaddr:$src)>;
+def : Pat<(i32 (extloadi8 iaddr:$src)), (LDB iaddr:$src)>;
+def : Pat<(i32 (extloadi16 iaddr:$src)), (LDS iaddr:$src)>;
 
 
 def NOP: NOP<0, "nop", IIC_ALU1>;
@@ -235,14 +238,16 @@ def NOP: NOP<0, "nop", IIC_ALU1>;
 
 let Constraints="$dst = $src1", Defs = [FLAGS] in {
     def ADDI: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src1, i32imm:$v),
-    "addi $v, $dst", [(set (i32 GPRegs:$dst), (add (i32 GPRegs:$src1), imm:$v)),(implicit FLAGS)], IIC_ALU1>;
+    "addi $v, $dst", [(set (i32 GPRegs:$dst), (add (i32 GPRegs:$src1), imm:$v)),(implicit FLAGS)], IIC_ALU2>;
 }
 
 
 let Defs = [FLAGS] in {
-    def CMPI: XTCGENERIC<(outs), (ins GPRegs:$src1, i32imm:$v), "cmpi $v, $src1", [(XTCcmp i32:$src1, imm:$v),(implicit FLAGS)], IIC_ALU1>;
+    def CMPI: XTCGENERIC<(outs), (ins GPRegs:$src1, i32imm:$v),
+        "cmpi $v, $src1", [(XTCcmp i32:$src1, imm:$v),(implicit FLAGS)], IIC_ALU2>;
 
-    def CMP: XTCGENERIC<(outs), (ins GPRegs:$a, GPRegs:$b), "cmp $a, $b", [(XTCcmp i32:$a, i32:$b),(implicit FLAGS)], IIC_ALU1>;
+    def CMP: XTCGENERIC<(outs), (ins GPRegs:$a, GPRegs:$b),
+        "cmp $a, $b", [(XTCcmp i32:$a, i32:$b),(implicit FLAGS)], IIC_ALU1>;
 }
 /*
 let Constraints="$a = $b" in {
@@ -284,26 +289,29 @@ let Constraints = "$ptr = $ptr_wb" in {
 
     def STWPOSTI: XTCGENERIC<(outs GPRegs:$ptr_wb), (ins GPRegs:$val, GPRegs:$ptr, i32imm:$offset),
             "stw+ $val, ($ptr) $offset) ", [(set GPRegs:$ptr_wb,
-                  (post_store (i32 GPRegs:$val), (i32 GPRegs:$ptr), imm:$offset))], IIC_ALU1>;
+                  (post_store (i32 GPRegs:$val), (i32 GPRegs:$ptr), imm:$offset))], IIC_ALU2MEM>;
 
 
     def STWPREI: XTCGENERIC<(outs GPRegs:$ptr_wb), (ins GPRegs:$val, GPRegs:$ptr, i32imm:$offset),
             "st+w $val, ($ptr) $offset ", [(set GPRegs:$ptr_wb,
-                  (pre_store (i32 GPRegs:$val), (i32 GPRegs:$ptr), imm:$offset))], IIC_ALU1>;
+                  (pre_store (i32 GPRegs:$val), (i32 GPRegs:$ptr), imm:$offset))], IIC_ALU2MEM>;
 }
 
 //def POSTSTORE: ST_PostInc <"memw", "STriw", IntRegs, i32imm>, AddrModeRel;
 
 //def: Pat<(pre_store (i32 GPRegs:$src1), GPRegs:$src2, (i32 imm:$offset)), (POSTSTORE (i32 GPRegs:$src1), GPRegs:$src2, (i32 imm:$offset))>;
 
-def STBI:  XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
-    "stbi $val, ($dst)", [(truncstorei8 (i32 GPRegs:$val) ,iaddr:$dst)], IIC_ALU1>;
+def STB:  XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
+    "stb $val, ($dst)", [(truncstorei8 (i32 GPRegs:$val) ,iaddr:$dst)], IIC_ALU2MEM>;
 
-def STSI:  XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
-    "stsi $val, ($dst)", [(truncstorei16 (i32 GPRegs:$val) ,iaddr:$dst)], IIC_ALU1>;
+def STS:  XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
+    "sts $val, ($dst)", [(truncstorei16 (i32 GPRegs:$val) ,iaddr:$dst)], IIC_ALU2MEM>;
 
-def STWI:   XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
-    "stwi $val, ($dst)", [(store (i32 GPRegs:$val), iaddr:$dst)], IIC_ALU1>;
+def STW:   XTCGENERIC<(outs), (ins GPRegs:$val, memri:$dst),
+    "stw $val, ($dst)", [(store (i32 GPRegs:$val), iaddr:$dst)], IIC_ALU2MEM>;
+
+def STSPR:   XTCGENERIC<(outs), (ins SPRegs:$val, memri:$dst),
+    "stspr $val, ($dst)", [(store (i32 SPRegs:$val), iaddr:$dst)], IIC_ALU2MEM>;
 
 
 
@@ -341,10 +349,10 @@ let mayLoad=1 in {
 
 let Constraints="$src = $dst" in {
     def SEXTB: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src),
-    "sextb $src", [], IIC_ALU1>;
+    "sextb $src", [], IIC_ALU2>;
 
     def SEXTS: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src),
-    "sexts $src", [], IIC_ALU1>;
+    "sexts $src", [], IIC_ALU2>;
 }
 
 def : Pat <(sext_inreg (i32 GPRegs:$src1), i8),

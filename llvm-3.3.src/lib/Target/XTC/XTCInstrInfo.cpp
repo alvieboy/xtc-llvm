@@ -43,7 +43,7 @@ static bool isZeroImm(const MachineOperand &op) {
 unsigned XTCInstrInfo::
 isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex) const {
 
-    if (MI->getOpcode() == XTC::LDWI) {
+    if (MI->getOpcode() == XTC::LDW) {
     if ((MI->getOperand(1).isFI()) && // is a stack slot
         (MI->getOperand(2).isImm()) &&  // the imm is zero
         (isZeroImm(MI->getOperand(2)))) {
@@ -62,7 +62,7 @@ isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex) const {
 /// any side effects other than storing to the stack slot.
 unsigned XTCInstrInfo::
 isStoreToStackSlot(const MachineInstr *MI, int &FrameIndex) const {
-    if (MI->getOpcode() == XTC::STWI) {
+    if (MI->getOpcode() == XTC::STW) {
     if ((MI->getOperand(1).isFI()) && // is a stack slot
         (MI->getOperand(2).isImm()) &&  // the imm is zero
         (isZeroImm(MI->getOperand(2)))) {
@@ -98,11 +98,17 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     const TargetRegisterClass *RC,
                     const TargetRegisterInfo *TRI) const {
 
+    MachineFunction *F = MBB.getParent();
+    MachineRegisterInfo &MRI = F->getRegInfo();
+
     DebugLoc DL;
     if (RC == &XTC::GPRegsRegClass) {
-        BuildMI(MBB, I, DL, get(XTC::STWI)).addReg(SrcReg,getKillRegState(isKill))
-            .addFrameIndex(FI).addImm(0); //.addFrameIndex(FI);
+        BuildMI(MBB, I, DL, get(XTC::STW)).addReg(SrcReg,getKillRegState(isKill))
+            .addFrameIndex(FI).addImm(0);
 
+    } else if (RC == &XTC::SPRegsRegClass) {
+        BuildMI(MBB, I, DL, get(XTC::STSPR)).addReg(SrcReg,getKillRegState(isKill))
+            .addFrameIndex(FI).addImm(0);
     } else {
         llvm_unreachable("Cannot store this register to stack slot");
     }
@@ -114,11 +120,16 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      const TargetRegisterClass *RC,
                      const TargetRegisterInfo *TRI) const {
 
+    MachineFunction *F = MBB.getParent();
+    MachineRegisterInfo &MRI = F->getRegInfo();
     DebugLoc DL;
 
     if (RC == &XTC::GPRegsRegClass) {
-        BuildMI(MBB, I, DL, get(XTC::LDWI), DestReg)
-            .addFrameIndex(FI).addImm(0); //.addFrameIndex(FI);
+        BuildMI(MBB, I, DL, get(XTC::LDW), DestReg)
+            .addFrameIndex(FI).addImm(0);
+    } else if (RC == &XTC::SPRegsRegClass) {
+        BuildMI(MBB, I, DL, get(XTC::LDSPR), DestReg)
+            .addFrameIndex(FI).addImm(0);
     } else {
         llvm_unreachable("Cannot load this register from stack slot");
     }
