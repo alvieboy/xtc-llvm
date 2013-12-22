@@ -149,11 +149,6 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
     MachineBasicBlock::iterator I = MBB.end();
     MachineBasicBlock::iterator UI = MBB.end();
 
-    DEBUG(dbgs()<<"Analyzing branch");
-    MBB.dump();
-    DEBUG(dbgs()<<"Analysis start.\n");
-    
-
     while (I != MBB.begin()) {
         --I;
         if (I->isDebugValue())
@@ -180,23 +175,19 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
                 TBB = I->getOperand(0).getMBB();
                 continue;
             }
-#if 1
+
             // If the block has any instructions after a JMP, delete them.
             while (llvm::next(I) != MBB.end()) {
-                DEBUG(dbgs()<<"Erasing instruction after JMP:\n");
                 llvm::next(I)->dump();
                 llvm::next(I)->eraseFromParent();
             }
-#endif
+
             Cond.clear();
             FBB = 0;
 
             // Delete the JMP if it's equivalent to a fall-through.
             if (MBB.isLayoutSuccessor(I->getOperand(0).getMBB())) {
                 TBB = 0;
-                I->getOperand(0).getMBB()->dump();
-                DEBUG(dbgs()<<"Fall-through jump, erasing instruction: \n");
-                I->dump();
                 I->eraseFromParent();
                 UI = I = MBB.end();
                 continue;
@@ -212,9 +203,6 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 
         XTCCC::CC BranchCode = (XTCCC::CC)I->getOperand(1).getImm();
 
-        DEBUG(dbgs()<<"Handling Condition: "<<XTCCCToString(BranchCode)<<"\n");
-        DEBUG(dbgs()<<"Allow mod "<<AllowModify<<"\n");
-
         if (Cond.empty()) {
             MachineBasicBlock *TargetBB = I->getOperand(0).getMBB();
             if (AllowModify && UI != MBB.end() &&
@@ -223,7 +211,7 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
                 //Transform the code
                 //
                 //    brCC L1
-                //    ba L2
+                //    bri L2
                 // L1:
                 //    ..
                 // L2:
@@ -236,7 +224,6 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
                 // L2:
                 //
                 BranchCode = XTCCC::getOppositeCondition(BranchCode);
-                DEBUG(dbgs()<<"Transforming into "<< XTCCCToString(BranchCode)<<"\n");
 
                 MachineBasicBlock::iterator OldInst = I;
 
@@ -248,9 +235,6 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 
                 OldInst->eraseFromParent();
                 UI->eraseFromParent();
-
-                DEBUG(dbgs()<<"End MBB:\n");
-                MBB.dump();
 
                 UI = MBB.end();
                 I = MBB.end();
