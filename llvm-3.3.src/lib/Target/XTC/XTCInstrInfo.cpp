@@ -145,8 +145,15 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
                                  bool AllowModify) const {
     // Start from the bottom of the block and work up, examining the
     // terminator instructions.
-    return true;
+    //return true;
     MachineBasicBlock::iterator I = MBB.end();
+    MachineBasicBlock::iterator UI = MBB.end();
+
+    DEBUG(dbgs()<<"Analyzing branch");
+    MBB.dump();
+    DEBUG(dbgs()<<"Analysis start.\n");
+    
+
     while (I != MBB.begin()) {
         --I;
         if (I->isDebugValue())
@@ -162,28 +169,36 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
         if (!I->isBranch())
             return true;
 
+        unsigned Opcode = I->getOpcode();
+
         // Handle unconditional branches.
-        if (llvm::XTC::isUncondBranchOpcode(I->getOpcode())) {
+        if (llvm::XTC::isUncondBranchOpcode(Opcode)) {
+
+            UI=I;
+
             if (!AllowModify) {
                 TBB = I->getOperand(0).getMBB();
                 continue;
             }
-
+#if 1
             // If the block has any instructions after a JMP, delete them.
             while (llvm::next(I) != MBB.end()) {
-                DEBUG(dbgs()<<"Erasing instruction after JMP\n");
+                DEBUG(dbgs()<<"Erasing instruction after JMP:\n");
+                llvm::next(I)->dump();
                 llvm::next(I)->eraseFromParent();
             }
+#endif
             Cond.clear();
             FBB = 0;
 
             // Delete the JMP if it's equivalent to a fall-through.
             if (MBB.isLayoutSuccessor(I->getOperand(0).getMBB())) {
                 TBB = 0;
-                DEBUG(dbgs()<<"Fall-through jump, erasing instruction\n");
+                I->getOperand(0).getMBB()->dump();
+                DEBUG(dbgs()<<"Fall-through jump, erasing instruction: \n");
                 I->dump();
                 I->eraseFromParent();
-                I = MBB.end();
+                UI = I = MBB.end();
                 continue;
             }
 
@@ -194,36 +209,59 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 
         // Handle conditional branches.
         assert(llvm::XTC::isCondBranchOpcode(I->getOpcode()));
-#if 0
-        unsigned BranchCode =
-            static_cast<MSP430CC::CondCodes>(I->getOperand(1).getImm());
-        if (BranchCode == MSP430CC::COND_INVALID)
-            return true;  // Can't handle weird stuff.
 
-        // Working from the bottom, handle the first conditional branch.
+        XTCCC::CC BranchCode = (XTCCC::CC)I->getOperand(1).getImm();
+
+        DEBUG(dbgs()<<"Handling Condition: "<<XTCCCToString(BranchCode)<<"\n");
+        DEBUG(dbgs()<<"Allow mod "<<AllowModify<<"\n");
+
         if (Cond.empty()) {
+            MachineBasicBlock *TargetBB = I->getOperand(0).getMBB();
+            if (AllowModify && UI != MBB.end() &&
+                MBB.isLayoutSuccessor(TargetBB)) {
+
+                //Transform the code
+                //
+                //    brCC L1
+                //    ba L2
+                // L1:
+                //    ..
+                // L2:
+                //
+                // into
+                //
+                //   brnCC L2
+                // L1:
+                //   ...
+                // L2:
+                //
+                BranchCode = XTCCC::getOppositeCondition(BranchCode);
+                DEBUG(dbgs()<<"Transforming into "<< XTCCCToString(BranchCode)<<"\n");
+
+                MachineBasicBlock::iterator OldInst = I;
+
+                BuildMI(MBB, UI, MBB.findDebugLoc(I), get(Opcode))
+                    .addMBB(UI->getOperand(0).getMBB()).addImm(BranchCode);
+
+                BuildMI(MBB, UI, MBB.findDebugLoc(I), get(XTC::BRI))
+                    .addMBB(TargetBB);
+
+                OldInst->eraseFromParent();
+                UI->eraseFromParent();
+
+                DEBUG(dbgs()<<"End MBB:\n");
+                MBB.dump();
+
+                UI = MBB.end();
+                I = MBB.end();
+                continue;
+            }
             FBB = TBB;
             TBB = I->getOperand(0).getMBB();
             Cond.push_back(MachineOperand::CreateImm(BranchCode));
             continue;
         }
 
-        // Handle subsequent conditional branches. Only handle the case where all
-        // conditional branches branch to the same destination.
-        assert(Cond.size() == 1);
-        assert(TBB);
-
-        // Only handle the case where all conditional branches branch to
-        // the same destination.
-        if (TBB != I->getOperand(0).getMBB())
-            return true;
-
-        MSP430CC::CondCodes OldBranchCode = (MSP430CC::CondCodes)Cond[0].getImm();
-        // If the conditions are the same, we can leave them alone.
-        if (OldBranchCode == BranchCode)
-            continue;
-        return true;
-#endif
         return true; /* Don't handle this yet */
     }
 
@@ -238,26 +276,24 @@ InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
              DebugLoc DL) const {
 
     // Shouldn't be a fall through.
-  assert(TBB && "InsertBranch must not be told to insert a fallthrough");
-  assert((Cond.size() == 2 || Cond.size() == 0) &&
-         "XTC branch conditions have two components!");
+    assert(TBB && "InsertBranch must not be told to insert a fallthrough");
 
-  unsigned Opc = XTC::BRI;
-  if (!Cond.empty())
-    Opc = (unsigned)Cond[0].getImm();
+    assert((Cond.size() == 1 || Cond.size() == 0) &&
+           "XTC branch conditions have one component!");
 
-  if (FBB == 0) {
-    if (Cond.empty()) // Unconditional branch
-      BuildMI(&MBB, DL, get(Opc)).addMBB(TBB);
-    else              // Conditional branch
-      BuildMI(&MBB, DL, get(Opc)).addReg(Cond[1].getReg()).addMBB(TBB);
+
+    if (FBB == 0) {
+        if (Cond.empty()) // Unconditional branch
+            BuildMI(&MBB, DL, get(XTC::BRI)).addMBB(TBB);
+        else              // Conditional branch
+            BuildMI(&MBB, DL, get(XTC::BCOND)).addMBB(TBB).addImm(Cond[0].getImm());
+        return 1;
+    }
+
+    BuildMI(&MBB, DL, get(XTC::BCOND)).addMBB(TBB).addImm(Cond[0].getImm());
+    BuildMI(&MBB, DL, get(XTC::BRI)).addMBB(FBB);
+
     return 1;
-  }
-
-  BuildMI(&MBB, DL, get(Opc)).addReg(Cond[1].getReg()).addMBB(TBB);
-  BuildMI(&MBB, DL, get(XTC::BRI)).addMBB(FBB);
-
-  return 2;
 }
 
 unsigned XTCInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
@@ -291,7 +327,7 @@ unsigned XTCInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
 
 bool XTCInstrInfo::ReverseBranchCondition(SmallVectorImpl<MachineOperand>
                                                &Cond) const {
-  assert(Cond.size() == 2 && "Invalid XTC branch opcode!");
+  assert(Cond.size() == 1 && "Invalid XTC branch opcode!");
   switch (Cond[0].getImm()) {
   default:            return true;
 #if 0
