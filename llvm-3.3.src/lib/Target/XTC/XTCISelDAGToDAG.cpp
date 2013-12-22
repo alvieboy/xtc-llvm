@@ -168,8 +168,9 @@ SDNode* XTCDAGToDAGISel::Select(SDNode *Node) {
         DEBUG(dbgs()<<"ALVIE: "<<"is GOT");
         return getGlobalBaseReg();
 
-    case ISD::FrameIndex: {
-
+    case ISD::FrameIndex:
+        {
+#if 0
         DEBUG(dbgs()<<"ALVIE: "<<"is FrameIndex\n");
         Node->dump();
         SDValue imm = CurDAG->getTargetConstant(0, MVT::i32);
@@ -198,8 +199,22 @@ SDNode* XTCDAGToDAGISel::Select(SDNode *Node) {
             return CurDAG->SelectNodeTo(Node, Opc, VT, TFI, imm);
 
         return CurDAG->getMachineNode(Opc, dl, VT, TFI, imm);
+#endif
+        assert(Node->getValueType(0) == MVT::i32);
 
-    }
+        int FI = cast<FrameIndexSDNode>(Node)->getIndex();
+
+        SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i32);
+
+        if (Node->hasOneUse())
+            return CurDAG->SelectNodeTo(Node, XTC::ADDRI, MVT::i32,
+                                        TFI, CurDAG->getTargetConstant(0, MVT::i32));
+
+        return CurDAG->getMachineNode(XTC::ADDRI, dl, MVT::i32,
+                                      TFI, CurDAG->getTargetConstant(0, MVT::i32));
+
+        }
+        break;
 
     case ISD::STORE:
         {
@@ -327,7 +342,7 @@ SDNode* XTCDAGToDAGISel::Select(SDNode *Node) {
 #endif
     }
     }
-    DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" Select code for node (call SelectCode)");
+    DEBUG(dbgs()<<__PRETTY_FUNCTION__<<" Select code for node (call SelectCode)\n");
     DEBUG(Node->dump(CurDAG));
     DEBUG(dbgs() << "\n");
 
@@ -342,28 +357,6 @@ SDNode* XTCDAGToDAGISel::Select(SDNode *Node) {
     DEBUG(dbgs() << "\n");
     DEBUG(dbgs() << "Returning\n");
     return ResNode;
-}
-
-bool XTCDAGToDAGISel::SelectAddrMode2OffsetImm(SDNode *Op, SDValue N,
-                                                  SDValue &Offset, SDValue &Opc) {
-  /*unsigned Opcode = Op->getOpcode();
-  ISD::MemIndexedMode AM = (Opcode == ISD::LOAD)
-      ? cast<LoadSDNode>(Op)->getAddressingMode()
-      : cast<StoreSDNode>(Op)->getAddressingMode();
-  ARM_AM::AddrOpc AddSub = (AM == ISD::PRE_INC || AM == ISD::POST_INC)
-      ? ARM_AM::add : ARM_AM::sub;
-  int Val;
-  if (isScaledConstantInRange(N, 1, 0, 0x1000, Val)) { // 12 bits.
-      Offset = CurDAG->getRegister(0, MVT::i32);
-    Opc = CurDAG->getTargetConstant(ARM_AM::getAM2Opc(AddSub, Val,
-                                                      ARM_AM::no_shift),
-                                    MVT::i32);
-    return true;
-  }
-  */
-    //return true;
-    DEBUG(dbgs()<<__PRETTY_FUNCTION__<<"called \n");
-    return false;
 }
 
 /// createXTCISelDag - This pass converts a legalized DAG into a

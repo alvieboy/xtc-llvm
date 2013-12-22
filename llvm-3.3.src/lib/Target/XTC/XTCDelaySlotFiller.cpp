@@ -251,6 +251,7 @@ findDelayInstr(MachineBasicBlock &MBB,MachineBasicBlock::iterator slot) {
 /// delay slot per delayed instruction.
 bool Filler::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
     bool Changed = false;
+
     for (MachineBasicBlock::iterator I = MBB.begin(); I != MBB.end(); ++I)
 
         if (I->hasDelaySlot()) {

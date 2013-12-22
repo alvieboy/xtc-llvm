@@ -1582,39 +1582,38 @@ bool XTCTargetLowering::SelectAddrRegReg(SDValue N, SDValue &Base, SDValue &Inde
 /// a signed 32-bit displacement [r+imm], and if it is not better
 /// represented as reg+reg.
 bool XTCTargetLowering::SelectAddrRegImm(SDValue N, SDValue &Base, SDValue &Disp,SelectionDAG &DAG) const {
-  // If this can be more profitably realized as r+r, fail.
     DEBUG(dbgs()<<__PRETTY_FUNCTION__<<"SelectAddrRegImm called\n");
 
-    if (SelectAddrRegReg(N, Base, Disp,DAG))
-        return false;
-
-  if (N.getOpcode() == ISD::ADD || N.getOpcode() == ISD::OR) {
-    int32_t imm = 0;
-    if (isIntS32Immediate(N.getOperand(1), imm)) {
-      Disp = DAG.getTargetConstant(imm, MVT::i32);
-      if (FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(N.getOperand(0))) {
-        Base = DAG.getTargetFrameIndex(FI->getIndex(), N.getValueType());
-      } else {
-        Base = N.getOperand(0);
-      }
-      return true; // [r+i]
+    if (N.getOpcode() == ISD::ADD || N.getOpcode() == ISD::OR) {
+        int32_t imm = 0;
+        if (isIntS32Immediate(N.getOperand(1), imm)) {
+            Disp = DAG.getTargetConstant(imm, MVT::i32);
+            if (FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(N.getOperand(0))) {
+                DEBUG(dbgs()<<"Got ADD/OR frameindex address "<<FI->getIndex()<<"\n");
+                Base = DAG.getTargetFrameIndex(FI->getIndex(), N.getValueType());
+            } else {
+                Base = N.getOperand(0);
+            }
+            return true; // [r+i]
+        }
+    } else if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(N)) {
+        // Loading from a constant address.
+        uint32_t Imm = CN->getZExtValue();
+        Disp = DAG.getTargetConstant(Imm, CN->getValueType(0));
+        Base = DAG.getRegister(XTC::r0, CN->getValueType(0));
+        return true;
     }
-  } else if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(N)) {
-    // Loading from a constant address.
-    uint32_t Imm = CN->getZExtValue();
-    Disp = DAG.getTargetConstant(Imm, CN->getValueType(0));
-    Base = DAG.getRegister(XTC::r0, CN->getValueType(0));
-    return true;
-  }
 
-  Disp = DAG.getTargetConstant(0, getPointerTy());
-  if (FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(N))
-    Base = DAG.getTargetFrameIndex(FI->getIndex(), N.getValueType());
-  else {
-      //Disp = N;    // NOTA: isto deve ser o verdadeiro offset...
-      Base = N;
-  }
-  return true;      // [r+0]
+    Disp = DAG.getTargetConstant(0, MVT::i32);
+    if (FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(N)) {
+        DEBUG(dbgs()<<"Got other frameindex address "<<FI->getIndex()<<"\n");
+        Base = DAG.getTargetFrameIndex(FI->getIndex(), getPointerTy());
+    }
+    else {
+        //Disp = N;    // NOTA: isto deve ser o verdadeiro offset...
+        Base = N;
+    }
+    return true;      // [r+0]
 }
 
 SDValue XTCTargetLowering::PerformDAGCombine(SDNode *N,

@@ -333,9 +333,9 @@ int XTCFrameLowering::getFrameIndexOffset(const MachineFunction &MF, int FI)
 const {
     const MachineFrameInfo *MFI = MF.getFrameInfo();
   
-  /*const XTCFunctionInfo *XTCFI = MF.getInfo<XTCFunctionInfo>();
-  if (XTCFI->hasReplacement(FI))
-  FI = XTCFI->getReplacement(FI);*/
+    const XTCFunctionInfo *XTCFI = MF.getInfo<XTCFunctionInfo>();
+    if (XTCFI->hasReplacement(FI))
+        FI = XTCFI->getReplacement(FI);
 #if 0
       DEBUG(dbgs()<<"Get Frame index offset\n");
       DEBUG(dbgs()<<"Fixed: "<<MFI->getNumFixedObjects()<<"\n");
@@ -350,6 +350,7 @@ const {
 // pointer register.  This is true if the function has variable sized allocas or
 // if frame pointer elimination is disabled.
 bool XTCFrameLowering::hasFP(const MachineFunction &MF) const {
+    return false;
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   return MF.getTarget().Options.DisableFramePointerElim(MF) ||
          MFI->hasVarSizedObjects();
@@ -387,9 +388,13 @@ void XTCFrameLowering::emitPrologue(MachineFunction &MF) const {
       .addReg(XTC::r15).addReg(XTC::r14).addImm(-4);
       */
 
+      BuildMI(MBB, MBBI, DL, TII.get(XTC::STW))
+          .addReg(XTC::r15).addReg(XTC::r14).addImm(-4);
+
+
       // Set it to SP
 
-      BuildMI(MBB, MBBI, DL, TII.get(XTC::COPY))
+      BuildMI(MBB, MBBI, DL, TII.get(TargetOpcode::COPY))
       .addReg(XTC::r15).addReg(XTC::r14);
   }
 

@@ -197,6 +197,7 @@ namespace llvm {
     /// specified FP immediate natively. If false, the legalizer will
     /// materialize the FP immediate as a load from a constant pool.
     virtual bool isFPImmLegal(const APFloat &Imm, EVT VT) const;
+
 public:
     bool SelectAddrRegReg(SDValue N, SDValue &Base, SDValue &Index, SelectionDAG &DAG) const;
     bool SelectAddrRegImm(SDValue N, SDValue &Base, SDValue &Disp, SelectionDAG &DAG) const;

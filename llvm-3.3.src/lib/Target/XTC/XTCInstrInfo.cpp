@@ -145,6 +145,7 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
                                  bool AllowModify) const {
     // Start from the bottom of the block and work up, examining the
     // terminator instructions.
+    return true;
     MachineBasicBlock::iterator I = MBB.end();
     while (I != MBB.begin()) {
         --I;
@@ -170,7 +171,7 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 
             // If the block has any instructions after a JMP, delete them.
             while (llvm::next(I) != MBB.end()) {
-                DEBUG(dbgs()<<"Erasing instruction");
+                DEBUG(dbgs()<<"Erasing instruction after JMP\n");
                 llvm::next(I)->eraseFromParent();
             }
             Cond.clear();
@@ -179,7 +180,8 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
             // Delete the JMP if it's equivalent to a fall-through.
             if (MBB.isLayoutSuccessor(I->getOperand(0).getMBB())) {
                 TBB = 0;
-                DEBUG(dbgs()<<"Fall-through jump, erasing instruction");
+                DEBUG(dbgs()<<"Fall-through jump, erasing instruction\n");
+                I->dump();
                 I->eraseFromParent();
                 I = MBB.end();
                 continue;
