@@ -304,11 +304,6 @@ def : Pat <(sext_inreg (i32 GPRegs:$src1), i16),
            (SEXTS GPRegs:$src1)>;
 
 
-let isAsCheapAsAMove=1 in {
-    //def MOV: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src), "copy $src, $dst", [(set (i32 GPRegs:$dst) ,(i32 GPRegs:$src) )], IIC_ALU1>;
-    def MOV: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src), "copy $src, $dst", [], IIC_ALU1>;
-}
-
 let Uses = [FLAGS], isBranch = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1, hasCtrlDep = 1 , isIndirectBranch = 1 in {
 
 def BCOND: XTCGENERIC<(outs), (ins brtarget:$dst, cc:$cc),
