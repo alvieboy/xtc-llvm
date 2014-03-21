@@ -146,6 +146,7 @@ bool XTCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
     // Start from the bottom of the block and work up, examining the
     // terminator instructions.
     //return true;
+
     MachineBasicBlock::iterator I = MBB.end();
     MachineBasicBlock::iterator UI = MBB.end();
 

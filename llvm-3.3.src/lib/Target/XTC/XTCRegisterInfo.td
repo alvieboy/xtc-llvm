@@ -56,10 +56,11 @@ let Namespace = "XTC" in {
   def PC   : SPR<0, "pc">,    DwarfRegNum<[16]>;
   def BR   : SPR<1, "br">,    DwarfRegNum<[17]>;
   def Y    : SPR<2, "y">,     DwarfRegNum<[18]>;
-  def FLAGS : SPR<3, "FLAGS">,     DwarfRegNum<[19]>;
-  def INTPC: SPR<4, "INTPC">, DwarfRegNum<[20]>;
-  def INTM : SPR<5, "INTM">,  DwarfRegNum<[21]>;
+  def PSR  : SPR<3, "psr">,     DwarfRegNum<[19]>; /* PSR */
+  def SPSR : SPR<4, "spsr">, DwarfRegNum<[20]>;
+  def SBR  : SPR<5, "sbr">,  DwarfRegNum<[21]>;
+  def TTR  : SPR<6, "ttr">,   DwarfRegNum<[22]>; /* Trap table register */
 }
 
 def GPRegs : RegisterClass<"XTC", [i32], 32, (sequence "r%u", 0, 15)>;
-def SPRegs : RegisterClass<"XTC", [i32], 32, (add PC, BR, Y, FLAGS, INTPC, INTM)> { let isAllocatable = 0; }
+def SPRegs : RegisterClass<"XTC", [i32], 32, (add PC, BR, Y, PSR, SPSR, SBR, TTR)> { let isAllocatable = 0; }

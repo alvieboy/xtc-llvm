@@ -142,7 +142,7 @@ let Constraints="$dst = $src2" in  {
     class ArithF<bits<3> aluop, string instr_asm, SDNode OpNode, InstrItinClass itin> :
             XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src1, GPRegs:$src2),
              !strconcat(instr_asm, "   $src1, $dst"),
-               [(set GPRegs:$dst, (OpNode GPRegs:$src1, GPRegs:$src2)), (implicit FLAGS)], itin>;
+               [(set GPRegs:$dst, (OpNode GPRegs:$src1, GPRegs:$src2)), (implicit PSR)], itin>;
 }
 
 let Constraints="$dst = $src2" in  {
@@ -156,7 +156,15 @@ let Constraints="$dst = $src2" in  {
     class INVArithF<bits<3> aluop, string instr_asm, SDNode OpNode, InstrItinClass itin> :
             XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src1, GPRegs:$src2),
              !strconcat(instr_asm, "   $src1, $dst"),
-               [(set GPRegs:$dst, (OpNode GPRegs:$src2, GPRegs:$src1)), (implicit FLAGS)], itin>;
+               [(set GPRegs:$dst, (OpNode GPRegs:$src2, GPRegs:$src1)), (implicit PSR)], itin>;
+}
+
+
+let Constraints="$dst = $src2" in  {
+    class INVArithFImm<bits<3> aluop, string instr_asm, SDNode OpNode, InstrItinClass itin> :
+             XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src1, GPRegs:$src2, i32imm: $i),
+             !strconcat(instr_asm, "   $src1, $i, $dst"),
+        [(set GPRegs:$dst, (OpNode GPRegs:$src2, (OpNode GPRegs:$src1, imm:$i) )), (implicit PSR)], itin>;
 }
 
 
@@ -175,7 +183,7 @@ def call          : SDNode<"XTCISD::CALL", SDT_XTCCall,
                            [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
                             SDNPVariadic]>;
 
-let isCall=1, hasDelaySlot=1, Defs = [r1,r2,r3,r7,r8,r9,r10,r11,r12,r13,r14,BR,FLAGS] in {
+let isCall=1, hasDelaySlot=1, Defs = [r1,r2,r3,r7,r8,r9,r10,r11,r12,r13,r14,BR,PSR] in {
 
     def CALL: XTCGENERIC<(outs), (ins calltarget:$src, variable_ops),
         "call $src, r0", [ (call i32:$src)], IIC_ALU2>;
@@ -224,19 +232,19 @@ def : Pat<(i32 (extloadi16 iaddr:$src)), (LDS iaddr:$src)>;
 def NOP: NOP<0, "nop", IIC_ALU1>;
 
 
-let Defs = [FLAGS] in {
+let Defs = [PSR] in {
     def CMPI: XTCGENERIC<(outs), (ins GPRegs:$src1, i32imm:$v),
-        "cmpi $v, $src1", [(XTCcmp i32:$src1, imm:$v),(implicit FLAGS)], IIC_ALU2>;
+        "cmpi $v, $src1", [(XTCcmp i32:$src1, imm:$v),(implicit PSR)], IIC_ALU2>;
 
     def CMP: XTCGENERIC<(outs), (ins GPRegs:$a, GPRegs:$b),
-        "cmp $b, $a", [(XTCcmp i32:$a, i32:$b),(implicit FLAGS)], IIC_ALU1>;
+        "cmp $b, $a", [(XTCcmp i32:$a, i32:$b),(implicit PSR)], IIC_ALU1>;
 }
 
-let Defs = [FLAGS] in {
-    def ADD:  INVArithF<0x0, "add ",  add,  IIC_ALU1>;
+let Defs = [PSR] in {
+    def ADD:  INVArithFImm<0x0, "add ",  add,  IIC_ALU1>;
     def AND:  INVArithF<0x2, "and ",  and,  IIC_ALU1>;
     def OR:   INVArithF<0x3, "or ",   or,   IIC_ALU1>;
-    def SUB:  INVArithF<0x3, "sub ",  sub,  IIC_ALU1>;
+    //def SUB:  INVArithF<0x3, "sub ",  sub,  IIC_ALU1>;
 }
 
 def SHL:  INVArith<0x3, "shl ",  shl,  IIC_ALU1>;
@@ -244,12 +252,12 @@ def SRL:  INVArith<0x3, "srl ",  srl,  IIC_ALU1>;
 def SRA:  INVArith<0x3, "sra ",  sra,  IIC_ALU1>;
 def XOR:  Arith<0x3, "xor ",  xor,  IIC_ALU1>;
 
-let Defs = [FLAGS] in {
+let Defs = [PSR] in {
     def ADDC:  INVArithF<0x0, "add ",  addc,  IIC_ALU1>;
     def SUBC:  INVArithF<0x0, "sub ",  subc,  IIC_ALU1>;
 }
 
-let Defs = [FLAGS], Uses = [FLAGS] in {
+let Defs = [PSR], Uses = [PSR] in {
     def ADDE:  INVArithF<0x0, "addc ",  adde,  IIC_ALU1>;
     def SUBE:  INVArithF<0x0, "subb ",  sube,  IIC_ALU1>;
 }
@@ -304,7 +312,7 @@ def : Pat <(sext_inreg (i32 GPRegs:$src1), i16),
            (SEXTS GPRegs:$src1)>;
 
 
-let Uses = [FLAGS], isBranch = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1, hasCtrlDep = 1 , isIndirectBranch = 1 in {
+let Uses = [PSR], isBranch = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1, hasCtrlDep = 1 , isIndirectBranch = 1 in {
 
 def BCOND: XTCGENERIC<(outs), (ins brtarget:$dst, cc:$cc),
     "bri$cc $dst",
@@ -336,14 +344,14 @@ def : Pat<(XTCWrapper tconstpool:$in),  (IM tconstpool:$in)>;
 def : Pat<(br bb:$T), (BRI bb:$T)>;
 def : Pat<(brind GPRegs:$T), (BRR GPRegs:$T)>;
 
-let Constraints="$src1 = $dst", Defs = [FLAGS] in {
+let Constraints="$src1 = $dst", Defs = [PSR] in {
     def ADDI: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src1, i32imm:$v),
-    "addi $v, $dst /* $src1 */", [(set GPRegs:$dst, (add GPRegs:$src1, imm:$v)),(implicit FLAGS)], IIC_ALU2>;
+    "addi $v, $dst /* $src1 */", [(set GPRegs:$dst, (add GPRegs:$src1, imm:$v)),(implicit PSR)], IIC_ALU2>;
 }
 
-let Defs = [FLAGS] in {
+let Defs = [PSR] in {
     def ADDRI: XTCGENERIC<(outs GPRegs:$dst), (ins GPRegs:$src, i32imm:$v),
-    "addri $src, $v, $dst", [(set GPRegs:$dst, (add GPRegs:$src, imm:$v)),(implicit FLAGS)], IIC_ALU2>;
+    "addri $src, $v, $dst", [(set GPRegs:$dst, (add GPRegs:$src, imm:$v)),(implicit PSR)], IIC_ALU2>;
 }
 
 
