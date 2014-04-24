@@ -66,9 +66,12 @@ void XTCInstPrinter::printUnsignedImm(const MCInst *MI, int OpNo,
 
 void XTCInstPrinter::printMemOperand(const MCInst *MI, int OpNo,
                                         raw_ostream &O, const char *Modifier) {
-  printOperand(MI, OpNo, O, NULL);
-  O << " + ";
-  printOperand(MI, OpNo+1, O, NULL);
+    printOperand(MI, OpNo, O, NULL);
+    const MCOperand &MO = MI->getOperand(OpNo+1);
+    if (MO.isImm() && MO.getImm() ==0 )
+        return;
+    O << " + ";
+    printOperand(MI, OpNo+1, O, NULL);
 }
 
 void XTCInstPrinter::printAM2PreOrOffsetIndexOp(const MCInst *MI, unsigned Op,

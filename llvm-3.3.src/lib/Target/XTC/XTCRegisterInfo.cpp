@@ -43,7 +43,7 @@ using namespace llvm;
 
 XTCRegisterInfo::
 XTCRegisterInfo(const XTCSubtarget &ST, const TargetInstrInfo &tii)
-  : XTCGenRegisterInfo(XTC::r7), Subtarget(ST), TII(tii) {}
+  : XTCGenRegisterInfo(XTC::r13), Subtarget(ST), TII(tii) {}
 
 unsigned XTCRegisterInfo::getPICCallReg() {
   return XTC::r2;
@@ -63,9 +63,8 @@ XTCRegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind)
 /// XTC Callee Saved Registers
 const uint16_t* XTCRegisterInfo::
 getCalleeSavedRegs(const MachineFunction *MF) const {
-  // XTC callee-save register range is R20 - R31
   static const uint16_t CalleeSavedRegs[] = {
-      XTC::BR, XTC::r4, XTC::r5, XTC::r6,
+      XTC::r4, XTC::r5, XTC::r6,
       0
   };
 
@@ -79,6 +78,7 @@ getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
   Reserved.set(XTC::r0);
   Reserved.set(XTC::r1);
+  Reserved.set(XTC::r12);
   Reserved.set(XTC::r13);
 
   if (TFI->hasFP(MF))

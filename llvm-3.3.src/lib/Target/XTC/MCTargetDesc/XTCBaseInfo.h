@@ -95,8 +95,6 @@ static inline unsigned getXTCRegisterNumbering(unsigned RegEnum) {
     case XTC::r13     : return 13;
     case XTC::r14     : return 14;
     case XTC::r15     : return 15;
-    case XTC::PC      : return 16;
-    case XTC::BR      : return 17;
     case XTC::Y       : return 18;
     default: llvm_unreachable("Unknown register number!");
   }

@@ -14,8 +14,8 @@
 //===----------------------------------------------------------------------===//
 
 def RetCC_XTC : CallingConv<[
-  // i32 are returned in registers R1 and R13
-  CCIfType<[i32], CCAssignToReg<[r1, r13]>>
+  // i32 are returned in registers R1 and R12
+  CCIfType<[i32], CCAssignToReg<[r1, r12]>>
 ]>;
 
 def CC_XTC : CallingConv<[

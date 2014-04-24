@@ -42,7 +42,7 @@ static MCInstrInfo *createXTCMCInstrInfo() {
 
 static MCRegisterInfo *createXTCMCRegisterInfo(StringRef TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
-  InitXTCMCRegisterInfo(X, XTC::r7);
+  InitXTCMCRegisterInfo(X, XTC::r13);
   return X;
 }
 

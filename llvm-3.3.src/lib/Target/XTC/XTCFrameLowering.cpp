@@ -367,8 +367,6 @@ void XTCFrameLowering::emitPrologue(MachineFunction &MF) const {
 
   CallingConv::ID CallConv = MF.getFunction()->getCallingConv();
 
-  bool requiresRA = false; //CallConv == CallingConv::MBLAZE_INTR;
-
   // Determine the correct frame layout
   determineFrameLayout(MF);
 
@@ -376,7 +374,7 @@ void XTCFrameLowering::emitPrologue(MachineFunction &MF) const {
   unsigned StackSize = MFI->getStackSize();
 
   // No need to allocate space on the stack.
-  if (StackSize == 0 && !MFI->adjustsStack() && !requiresRA) return;
+  if (StackSize == 0 && !MFI->adjustsStack()) return;
 
   int FPOffset = XTCFI->getFPStackOffset();
   int RAOffset = XTCFI->getRAStackOffset();
@@ -398,15 +396,17 @@ void XTCFrameLowering::emitPrologue(MachineFunction &MF) const {
       .addReg(XTC::r15).addReg(XTC::r14);
   }
 
-  // Adjust stack : addi R1, R1, -imm
-  BuildMI(MBB, MBBI, DL, TII.get(XTC::ADDI), XTC::r15).addReg(XTC::r15).addImm(-StackSize);
-/*
-  // swi  R15, R1, stack_loc
-  if (MFI->adjustsStack() || requiresRA) {
-    BuildMI(MBB, MBBI, DL, TII.get(XTC::SWI))
-        .addReg(XTC::R15).addReg(XTC::R1).addImm(RAOffset);
-  }
+  // Adjust stack
 
+  BuildMI(MBB, MBBI, DL, TII.get(XTC::ADDI), XTC::r15).addReg(XTC::r15).addImm(-StackSize);
+
+  // Store link to register.
+
+  if (MFI->adjustsStack()) {
+    BuildMI(MBB, MBBI, DL, TII.get(XTC::STW))
+        .addReg(XTC::r13).addReg(XTC::r15).addImm(RAOffset);
+  }
+/*
   if (hasFP(MF)) {
     // swi  R19, R1, stack_loc
     BuildMI(MBB, MBBI, DL, TII.get(XTC::SWI))
@@ -449,16 +449,18 @@ void XTCFrameLowering::emitEpilogue(MachineFunction &MF,
            I != E; ++I)
           I->addLiveIn(XTC::r14);
   }
-  /*
-  // lwi R15, R1, stack_loc
-  if (MFI->adjustsStack() || requiresRA) {
-    BuildMI(MBB, MBBI, dl, TII.get(XTC::LWI), XTC::R15)
-    .addReg(XTC::R1).addImm(RAOffset);
-    */
+
+//  // lwi R15, R1, stack_loc
+
+  if (MFI->adjustsStack()) {
+      BuildMI(MBB, MBBI, dl, TII.get(XTC::LDW), XTC::r13)
+          .addReg(XTC::r15).addImm(RAOffset);
+  }
 
 
   // Get the number of bytes from FrameInfo
   int StackSize = (int) MFI->getStackSize();
+
   if (StackSize) {
     BuildMI(MBB, MBBI, dl, TII.get(XTC::ADDI), XTC::r15)
       .addReg(XTC::r15).addImm(StackSize);

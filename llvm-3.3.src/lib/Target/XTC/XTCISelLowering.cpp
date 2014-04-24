@@ -77,7 +77,7 @@ const char *XTCTargetLowering::getTargetNodeName(unsigned Opcode) const {
     case XTCISD::SETCC      : return "XTCISD::SETCC";
     case XTCISD::CMP        : return "XTCISD::CMP";
     case XTCISD::BR_CC      : return "XTCISD::BR_CC";
-    case XTCISD::CALL       : return "XTCISD::CALL";
+    //case XTCISD::CALL       : return "XTCISD::CALL";
     default                    :
       llvm_unreachable("Unknown node name");
       return NULL;
@@ -1127,7 +1127,7 @@ LowerCall(TargetLowering::CallLoweringInfo &CLI,
   if (InFlag.getNode())
     Ops.push_back(InFlag);
 
-  Chain  = DAG.getNode(XTCISD::CALL, dl, NodeTys, &Ops[0], Ops.size());
+  Chain  = DAG.getNode(XTCISD::JmpLink, dl, NodeTys, &Ops[0], Ops.size());
   InFlag = Chain.getValue(1);
 
   // Create the CALLSEQ_END node.
@@ -1340,7 +1340,7 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
   SDValue Flag;
   SmallVector<SDValue, 4> RetOps(1, Chain);
 
-  unsigned Reg = XTC::r1;
+  unsigned Reg = XTC::r13;
   unsigned Ret = XTCISD::Ret;
 
   RetOps.push_back(DAG.getRegister(Reg, MVT::i32));
@@ -1374,7 +1374,7 @@ SDValue XTCTargetLowering::
 LowerRETURNADDR(SDValue Chain, SelectionDAG &DAG) const {
     MachineFunction &MF = DAG.getMachineFunction();
 
-    MF.addLiveIn(XTC::BR, getRegClassFor(MVT::i32));
+    MF.addLiveIn(XTC::r13, getRegClassFor(MVT::i32));
     return DAG.getCopyFromReg(DAG.getEntryNode(), dl, Reg, VT)
 }
 #endif

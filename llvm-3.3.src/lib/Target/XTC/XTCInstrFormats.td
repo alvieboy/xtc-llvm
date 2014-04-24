@@ -55,7 +55,7 @@ class XTCInst<bits<4> op, Format form, dag outs, dag ins, string asmstr,
   dag OutOperandList = outs;
   dag InOperandList  = ins;
 
-  let AsmString   = asmstr;
+  let AsmString   = asmstr;//buildAsmString(asmstr, extstr);
   let Pattern     = pattern;
   let Itinerary   = itin;
 
