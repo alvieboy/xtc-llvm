@@ -77,7 +77,7 @@ getReservedRegs(const MachineFunction &MF) const {
 
   BitVector Reserved(getNumRegs());
   Reserved.set(XTC::r0);
-  Reserved.set(XTC::r1);
+  //Reserved.set(XTC::r1);
   Reserved.set(XTC::r12);
   Reserved.set(XTC::r13);
 

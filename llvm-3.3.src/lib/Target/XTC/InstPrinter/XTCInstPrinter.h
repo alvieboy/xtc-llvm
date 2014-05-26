@@ -38,6 +38,7 @@ namespace llvm {
     void printMemOperand(const MCInst *MI, int OpNo,raw_ostream &O,
                          const char *Modifier = 0);
     void printCCOperand(const MCInst *MI, int OpNo,raw_ostream &O);
+    void printPredicateOperand(const MCInst *MI, int OpNo,raw_ostream &O);
 
     void printAddrMode2Operand(const MCInst *MI, unsigned Op,
                                raw_ostream &O);

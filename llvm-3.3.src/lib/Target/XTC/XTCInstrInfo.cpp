@@ -87,8 +87,8 @@ copyPhysReg(MachineBasicBlock &MBB,
             unsigned DestReg, unsigned SrcReg,
             bool KillSrc) const {
 
-    llvm::BuildMI(MBB, I, DL, get(XTC::ADDRI), DestReg)
-    .addReg(SrcReg, getKillRegState(KillSrc)).addImm(0);
+    llvm::BuildMI(MBB, I, DL, get(XTC::ADDR), DestReg)
+    .addReg(SrcReg, getKillRegState(KillSrc));
 
 }
 

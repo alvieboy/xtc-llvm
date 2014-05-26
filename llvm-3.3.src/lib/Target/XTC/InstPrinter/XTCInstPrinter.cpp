@@ -146,3 +146,10 @@ void XTCInstPrinter::printCCOperand(const MCInst *MI, int opNum,
     int CC = (int)MI->getOperand(opNum).getImm();
     O << XTCCCToString((XTCCC::CC)CC);
 }
+
+void XTCInstPrinter::printPredicateOperand(const MCInst *MI, int OpNo,raw_ostream &O)
+{
+    int CC = (int)MI->getOperand(OpNo).getImm();
+    O << ".c" << XTCCCToString((XTCCC::CC)CC);
+}
+

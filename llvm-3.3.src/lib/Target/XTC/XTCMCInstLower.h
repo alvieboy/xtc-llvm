@@ -40,6 +40,8 @@ public:
   MCSymbol *GetJumpTableSymbol(const MachineOperand &MO) const;
   MCSymbol *GetConstantPoolIndexSymbol(const MachineOperand &MO) const;
   MCSymbol *GetBlockAddressSymbol(const MachineOperand &MO) const;
+protected:
+  unsigned GetLowerArith(unsigned opcode) const;
 };
 
 }

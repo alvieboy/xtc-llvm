@@ -14,6 +14,7 @@
 
 #include "XTCMCInstLower.h"
 #include "XTCInstrInfo.h"
+#include "InstPrinter/XTCInstPrinter.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -112,7 +113,40 @@ LowerSymbolOperand(const MachineOperand &MO, MCSymbol *Sym) const {
   return MCOperand::CreateExpr(Expr);
 }
 
+
+unsigned XTCMCInstLower::GetLowerArith(unsigned opcode) const
+{
+    switch(opcode) {
+    case XTC::ADDD:
+        return XTC::ADD;
+    case XTC::ANDD:
+        return XTC::AND;
+    case XTC::ORD:
+        return XTC::OR;
+    case XTC::XORD:
+        return XTC::XOR;
+    case XTC::SHLD:
+        return XTC::SHL;
+    case XTC::SRLD:
+        return XTC::SRL;
+    case XTC::SRAD:
+        return XTC::SRA;
+    case XTC::MULD:
+        return XTC::MUL;
+    case XTC::ADDDC:
+        return XTC::ADDC;
+    case XTC::ADDDE:
+        return XTC::ADDE;
+
+    default:
+        llvm_unreachable("Attempting to lower an unknown opcode");
+    }
+}
+
 void XTCMCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
+    bool needCommutation = false;
+    bool canLower = false;
+
   OutMI.setOpcode(MI->getOpcode());
 
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
@@ -163,5 +197,55 @@ void XTCMCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
     }
 
     OutMI.addOperand(MCOp);
+  }
+
+
+  switch (OutMI.getOpcode()) {
+  case XTC::ADDD:
+  case XTC::ANDD:
+  case XTC::ORD:
+  case XTC::XORD:
+  case XTC::ADDDC:
+  case XTC::ADDDE:
+#if 0
+  case XTC::SHLD:
+  case XTC::SRLD:
+  case XTC::SRAD:
+  case XTC::MULD:
+#endif
+      /* */
+      assert(OutMI.getNumOperands()==3);
+
+      if (OutMI.getOperand(1).getReg() == OutMI.getOperand(0).getReg())
+          canLower=true;
+      if ( OutMI.getOperand(2).getReg() == OutMI.getOperand(0).getReg() && MI->getDesc().isCommutable()) {
+          canLower=true;
+          needCommutation=true;
+      }
+
+      if ( canLower ) {
+          unsigned newOpc = GetLowerArith( OutMI.getOpcode());
+          MCOperand Target = OutMI.getOperand(0);
+          MCOperand LHS = OutMI.getOperand(1);
+          MCOperand RHS = OutMI.getOperand(2);
+
+          OutMI = MCInst();
+          OutMI.setOpcode(newOpc);
+          OutMI.addOperand( Target );
+          OutMI.addOperand( needCommutation ? LHS : RHS );
+      }
+      break;
+  case XTC::ADDEI:
+      /* See if we can lower into ADDI */
+      if (OutMI.getOperand(1).getReg() == OutMI.getOperand(0).getReg()) {
+          MCOperand Target = OutMI.getOperand(0);
+          MCOperand Immed = OutMI.getOperand(2);
+
+          OutMI = MCInst();
+          OutMI.setOpcode( XTC::ADDI );
+          OutMI.addOperand( Target );
+          OutMI.addOperand( Target );
+          OutMI.addOperand( Immed );
+      }
   }
 }

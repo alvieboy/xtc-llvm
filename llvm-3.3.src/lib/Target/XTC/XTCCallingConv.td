@@ -19,7 +19,6 @@ def RetCC_XTC : CallingConv<[
 ]>;
 
 def CC_XTC : CallingConv<[
-  //CCIfType<[i32], CCCustom<"CC_XTC_AssignReg">>,
-  CCIfType<[i32], CCAssignToReg<[r2, r3, r4]>>,
+  CCIfType<[i32], CCAssignToReg<[r1, r2, r3, r4]>>,
   CCIfType<[i32], CCAssignToStack<4, 4>>
 ]>;

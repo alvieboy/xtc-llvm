@@ -178,6 +178,7 @@ public:
   bool isMem() const { return Kind == Memory; }
   bool isFsl() const { return Kind == Fsl; }
   bool isReg() const { return Kind == Register; }
+  bool isCondCode() const { return true; }
 
   bool isMemImm7Offset() const {
     // If we have an immediate that's not a constant, treat it as a label

@@ -330,13 +330,14 @@ static void determineFrameLayout(MachineFunction &MF) {
 }
 
 int XTCFrameLowering::getFrameIndexOffset(const MachineFunction &MF, int FI) 
-const {
+const{
+#if 0
     const MachineFrameInfo *MFI = MF.getFrameInfo();
   
     const XTCFunctionInfo *XTCFI = MF.getInfo<XTCFunctionInfo>();
     if (XTCFI->hasReplacement(FI))
         FI = XTCFI->getReplacement(FI);
-#if 0
+#if 1
       DEBUG(dbgs()<<"Get Frame index offset\n");
       DEBUG(dbgs()<<"Fixed: "<<MFI->getNumFixedObjects()<<"\n");
       DEBUG(dbgs()<<"This: "<<FI<<"\n");
@@ -344,6 +345,9 @@ const {
       MF.dump();
 #endif
       return TargetFrameLowering::getFrameIndexOffset(MF,FI);
+#else
+      return MF.getFrameInfo()->getObjectOffset(FI);
+#endif
 }
 
 // hasFP - Return true if the specified function should have a dedicated frame

@@ -22,6 +22,16 @@ def FALUaga   : Format<4>;
 
 def FIMM    : Format<5>;  // Immediate load
 
+def XTCCondCodeOperand : AsmOperandClass { let Name = "CondCode"; }
+
+def pred : PredicateOperand<OtherVT, (ops i32imm),
+                                     (ops (i32 0))> {
+  let PrintMethod = "printPredicateOperand";
+  let ParserMatchClass = XTCCondCodeOperand;
+  let DecoderMethod = "DecodePredicateOperand";
+}
+
+
 //===----------------------------------------------------------------------===//
 //  Describe XTC instructions format
 //
