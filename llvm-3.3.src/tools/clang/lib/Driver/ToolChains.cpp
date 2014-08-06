@@ -2645,11 +2645,11 @@ XTC::XTC(const Driver &D, const llvm::Triple& Triple, const ArgList &Args)
 }
 
 Tool *XTC::buildAssembler() const {
-  return new tools::dragonfly::Assemble(*this);
+  return new tools::xtc::Assemble(*this);
 }
 
 Tool *XTC::buildLinker() const {
-  return new tools::dragonfly::Link(*this);
+  return new tools::xtc::Link(*this);
 }
 
 
