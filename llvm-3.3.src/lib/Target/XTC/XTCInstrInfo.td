@@ -356,6 +356,10 @@ let isReturn=1, isTerminator=1, hasDelaySlot = 1, isBarrier = 1 in {
 let isBranch=1, hasDelaySlot = 1, isBarrier = 1 in {
     def JMP: XTCGENERIC<(outs), (ins GPRegs:$base, GPRegs:$save), "jmp $base, $save", [], IIC_ALU1>;
 }
+let isCall=1, hasDelaySlot=1, isBarrier = 1, Defs = [r1,r2,r3,r7,r8,r9,r10,r11,r12,r13,r14] in {
+    def CALLR: XTCGENERIC<(outs), (ins GPRegs:$base, GPRegs:$save), "jmp $base, $save", [], IIC_ALU1>;
+}
+
 
 def : Pat<(XTCRet GPRegs:$target), (RET $target, (i32 r0))>;
 
@@ -425,7 +429,7 @@ let isBranch = 1, isTerminator = 1, isBarrier = 1, hasDelaySlot = 1 in {
 // Call
 def : Pat<(XTCJmpLink (i32 tglobaladdr:$dst)), (BR tglobaladdr:$dst, (i32 r13))>;
 def : Pat<(XTCJmpLink (i32 texternalsym:$dst)),(BR texternalsym:$dst,(i32 r13))>;
-def : Pat<(XTCJmpLink (i32 GPRegs:$dst)),(JMP $dst,(i32 r13))>;
+def : Pat<(XTCJmpLink (i32 GPRegs:$dst)),(CALLR $dst,(i32 r13))>;
 
 //def : Pat<(XTCJmpLink GPRegs:$dst), (JMP GPRegs:$dst, (i32 r0))>;
 

@@ -102,7 +102,7 @@ static inline unsigned getXTCRegisterNumbering(unsigned RegEnum) {
 
 /// getRegisterFromNumbering - Given the enum value for some register, e.g.
 /// XTC::R0, return the number that it corresponds to (e.g. 0).
-static inline unsigned getGPRXTCRegisterFromNumbering(unsigned Reg) {
+static inline unsigned getXTCRegisterFromNumbering(unsigned Reg) {
     switch (Reg) {
     case 0  : return XTC::r0;
     case 1  : return XTC::r1;
@@ -112,7 +112,14 @@ static inline unsigned getGPRXTCRegisterFromNumbering(unsigned Reg) {
     case 5  : return XTC::r5;
     case 6  : return XTC::r6;
     case 7  : return XTC::r7;
-
+    case 8  : return XTC::r8;
+    case 9  : return XTC::r9;
+    case 10  : return XTC::r10;
+    case 11  : return XTC::r11;
+    case 12  : return XTC::r12;
+    case 13  : return XTC::r13;
+    case 14  : return XTC::r14;
+    case 15  : return XTC::r15;
     default: llvm_unreachable("Unknown register number!");
   }
 }

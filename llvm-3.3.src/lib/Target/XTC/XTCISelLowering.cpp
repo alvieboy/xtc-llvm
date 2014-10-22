@@ -1128,6 +1128,7 @@ LowerCall(TargetLowering::CallLoweringInfo &CLI,
     Ops.push_back(InFlag);
 
   Chain  = DAG.getNode(XTCISD::JmpLink, dl, NodeTys, &Ops[0], Ops.size());
+
   InFlag = Chain.getValue(1);
 
   // Create the CALLSEQ_END node.
@@ -1269,7 +1270,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
                                    false, false, false, 0));
     }
   }
-#if 0
+
   // To meet ABI, when VARARGS are passed on registers, the registers
   // must have their values written to the caller stack frame. If the last
   // argument was placed in the stack, there's no need to save any register.
@@ -1277,12 +1278,12 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
     if (StackPtr.getNode() == 0)
       StackPtr = DAG.getRegister(StackReg, getPointerTy());
 
-    // The last register argument that must be saved is XTC::R10
+    // The last register argument that must be saved is XTC::R4
     const TargetRegisterClass *RC = &XTC::GPRegsRegClass;
 
-    unsigned Begin = getXTCRegisterNumbering(XTC::R5);
+    unsigned Begin = getXTCRegisterNumbering(XTC::r1);
     unsigned Start = getXTCRegisterNumbering(ArgRegEnd+1);
-    unsigned End   = getXTCRegisterNumbering(XTC::R10);
+    unsigned End   = getXTCRegisterNumbering(XTC::r4);
     unsigned StackLoc = Start - Begin + 1;
 
     for (; Start <= End; ++Start, ++StackLoc) {
@@ -1311,7 +1312,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
     Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
                         &OutChains[0], OutChains.size());
   }
-#endif
+
   return Chain;
 }
 
